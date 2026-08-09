@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { getMyFavorites } from '@/services/favoritesService'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
 
@@ -14,6 +15,9 @@ const router = useRouter()
 // Datos ingresados en el formulario
 const email = ref('')
 const password = ref('')
+
+// Controla si la contraseña se muestra o se oculta
+const showPassword = ref(false)
 
 // Estados utilizados para mostrar carga y errores
 const loading = ref(false)
@@ -42,6 +46,15 @@ const handleLogin = async () => {
 
     // Guardamos el JWT y los datos del usuario en el store
     authStore.setSession(response.token, response.user)
+
+    // Cargamos los favoritos del usuario después del login
+    const favorites = await getMyFavorites(response.token)
+
+    // Guardamos los favoritos para utilizarlos en otras pantallas
+    localStorage.setItem(
+      'lasdoscaras_favorites',
+      JSON.stringify(favorites),
+    )
 
     // Redirigimos al usuario después de iniciar sesión correctamente
     router.push('/home')
@@ -130,10 +143,19 @@ const handleLogin = async () => {
                 <input
                   id="password"
                   v-model="password"
-                  type="password"
+                  :type="showPassword ? 'text' : 'password'"
                   placeholder="Ingresa tu contraseña"
                   autocomplete="current-password"
                 />
+
+                <button
+                  type="button"
+                  class="password-toggle"
+                  :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                  @click="showPassword = !showPassword"
+                >
+                  {{ showPassword ? 'Ocultar' : 'Mostrar' }}
+                </button>
               </div>
             </div>
 
@@ -596,4 +618,23 @@ const handleLogin = async () => {
     font-size: 30px;
   }
 }
+
+ /* Botón para mostrar u ocultar la contraseña */
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  border: none;
+  background: transparent;
+  color: #6d28d9;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.password-toggle:hover {
+  color: #4f46e5;
+}
+
 </style>

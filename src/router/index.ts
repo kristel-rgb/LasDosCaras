@@ -27,13 +27,18 @@ const router = createRouter({
   ],
 })
 
-// Protege las rutas que requieren una sesión iniciada
+// Controla el acceso a las rutas según el estado de autenticación
 router.beforeEach((to) => {
   const storedSession = localStorage.getItem('lasdoscaras_auth')
 
-  // Si la ruta requiere autenticación y no existe sesión, vuelve al login
+  // Si intenta entrar a una ruta protegida sin sesión, vuelve al login
   if (to.meta.requiresAuth && !storedSession) {
     return '/login'
+  }
+
+  // Si ya inició sesión, no puede volver a la pantalla de login
+  if (to.path === '/login' && storedSession) {
+    return '/home'
   }
 })
 
