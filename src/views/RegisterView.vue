@@ -30,27 +30,31 @@ const activationToken = ref('')
 const accountCreated = ref(false)
 const accountActivated = ref(false)
 
+// Estados para mostrar u ocultar las contraseñas
+const showPassword = ref(false)
+const showConfirmPassword = ref(false)
+
+// Requisitos individuales de la contraseña
+const passwordRequirements = computed(() => ({
+  length: form.password.length >= 8,
+  uppercase: /[A-Z]/.test(form.password),
+  lowercase: /[a-z]/.test(form.password),
+  number: /[0-9]/.test(form.password),
+  special: /[^A-Za-z0-9\s]/.test(form.password),
+}))
+
+// Indica si la contraseña cumple todos los requisitos
+const isPasswordValid = computed(() => {
+  return Object.values(passwordRequirements.value).every(Boolean)
+})
+
 // Calcula visualmente la fortaleza de la contraseña
 const passwordStrength = computed(() => {
-  let score = 0
+  const requirements = passwordRequirements.value
 
-  if (form.password.length >= 8) {
-    score++
-  }
+  const score = Object.values(requirements).filter(Boolean).length
 
-  if (/[A-Z]/.test(form.password)) {
-    score++
-  }
-
-  if (/[a-z]/.test(form.password)) {
-    score++
-  }
-
-  if (/[0-9]/.test(form.password)) {
-    score++
-  }
-
-  if (score <= 1) {
+  if (score <= 2) {
     return {
       text: 'Débil',
       className: 'weak',
@@ -58,7 +62,7 @@ const passwordStrength = computed(() => {
     }
   }
 
-  if (score <= 3) {
+  if (score <= 4) {
     return {
       text: 'Media',
       className: 'medium',
@@ -82,57 +86,61 @@ const clearErrors = (): void => {
   errorMessage.value = ''
 }
 
+// Limpia el error del nombre cuando el dato ya es válido
+watch(
+  () => form.name,
+  () => {
+    if (form.name.trim().length >= 3) {
+      errors.name = ''
+    }
+  },
+)
+
+// Limpia el error del correo cuando el dato ya es válido
+watch(
+  () => form.email,
+  () => {
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+    if (emailPattern.test(form.email.trim())) {
+      errors.email = ''
+    }
+  },
+)
+
+// Limpia el error de contraseña cuando cumple todos los requisitos
+watch(
+  () => form.password,
+  () => {
+    if (isPasswordValid.value) {
+      errors.password = ''
+    }
+
+    if (
+      form.confirmPassword &&
+      form.confirmPassword === form.password
+    ) {
+      errors.confirmPassword = ''
+    }
+  },
+)
+
+// Limpia el error de confirmación cuando ambas contraseñas coinciden
+watch(
+  () => form.confirmPassword,
+  () => {
+    if (
+      form.confirmPassword &&
+      form.confirmPassword === form.password
+    ) {
+      errors.confirmPassword = ''
+    }
+  },
+)
+
 // Valida el formulario antes de enviarlo al API
 const validateForm = (): boolean => {
   clearErrors()
-
-  watch(
-    () => form.name,
-    () => {
-      if (form.name.trim().length >= 3) {
-        errors.name = ''
-      }
-    },
-  )
-
-  watch(
-    () => form.email,
-    () => {
-      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-      if (emailPattern.test(form.email.trim())) {
-        errors.email = ''
-      }
-    },
-  )
-
-  watch(
-    () => form.password,
-    () => {
-      if (form.password.length >= 8) {
-        errors.password = ''
-      }
-
-      if (
-        form.confirmPassword &&
-        form.confirmPassword === form.password
-      ) {
-        errors.confirmPassword = ''
-      }
-    },
-  )
-
-  watch(
-    () => form.confirmPassword,
-    () => {
-      if (
-        form.confirmPassword &&
-        form.confirmPassword === form.password
-      ) {
-        errors.confirmPassword = ''
-      }
-    },
-  )
 
   let valid = true
 
@@ -148,8 +156,9 @@ const validateForm = (): boolean => {
     valid = false
   }
 
-  if (form.password.length < 8) {
-    errors.password = 'La contraseña debe tener al menos 8 caracteres.'
+  if (!isPasswordValid.value) {
+    errors.password =
+      'La contraseña debe tener mínimo 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial.'
     valid = false
   }
 
@@ -349,12 +358,26 @@ const handleActivation = async (): Promise<void> => {
                 <input
                   id="password"
                   v-model="form.password"
-                  type="password"
-                  placeholder="Mínimo 8 caracteres"
+                  :type="showPassword ? 'text' : 'password'"
+                  class="password-input"
+                  placeholder="Crea una contraseña segura"
                   autocomplete="new-password"
                   :aria-invalid="Boolean(errors.password)"
-                  aria-describedby="password-error"
+                  aria-describedby="password-error password-requirements"
                 />
+
+                <button
+                  class="toggle-password"
+                  type="button"
+                  :aria-label="
+                    showPassword
+                      ? 'Ocultar contraseña'
+                      : 'Mostrar contraseña'
+                  "
+                  @click="showPassword = !showPassword"
+                >
+                  {{ showPassword ? 'Ocultar' : 'Mostrar' }}
+                </button>
               </div>
 
               <!-- Indicador de fortaleza -->
@@ -372,6 +395,48 @@ const handleActivation = async (): Promise<void> => {
 
                 <span>
                   {{ passwordStrength.text }}
+                </span>
+              </div>
+
+              <!-- Requisitos de contraseña -->
+              <div
+                v-if="form.password"
+                id="password-requirements"
+                class="password-requirements"
+              >
+                <span
+                  :class="{ valid: passwordRequirements.length }"
+                >
+                  {{ passwordRequirements.length ? '✓' : '•' }}
+                  Mínimo 8 caracteres
+                </span>
+
+                <span
+                  :class="{ valid: passwordRequirements.uppercase }"
+                >
+                  {{ passwordRequirements.uppercase ? '✓' : '•' }}
+                  Una mayúscula
+                </span>
+
+                <span
+                  :class="{ valid: passwordRequirements.lowercase }"
+                >
+                  {{ passwordRequirements.lowercase ? '✓' : '•' }}
+                  Una minúscula
+                </span>
+
+                <span
+                  :class="{ valid: passwordRequirements.number }"
+                >
+                  {{ passwordRequirements.number ? '✓' : '•' }}
+                  Un número
+                </span>
+
+                <span
+                  :class="{ valid: passwordRequirements.special }"
+                >
+                  {{ passwordRequirements.special ? '✓' : '•' }}
+                  Un carácter especial
                 </span>
               </div>
 
@@ -397,12 +462,32 @@ const handleActivation = async (): Promise<void> => {
                 <input
                   id="confirm-password"
                   v-model="form.confirmPassword"
-                  type="password"
+                  :type="showConfirmPassword ? 'text' : 'password'"
+                  class="password-input"
                   placeholder="Repite tu contraseña"
                   autocomplete="new-password"
                   :aria-invalid="Boolean(errors.confirmPassword)"
                   aria-describedby="confirm-password-error"
                 />
+
+                <button
+                  class="toggle-password"
+                  type="button"
+                  :aria-label="
+                    showConfirmPassword
+                      ? 'Ocultar confirmación de contraseña'
+                      : 'Mostrar confirmación de contraseña'
+                  "
+                  @click="
+                    showConfirmPassword = !showConfirmPassword
+                  "
+                >
+                  {{
+                    showConfirmPassword
+                      ? 'Ocultar'
+                      : 'Mostrar'
+                  }}
+                </button>
               </div>
 
               <p
@@ -452,14 +537,14 @@ const handleActivation = async (): Promise<void> => {
             <span></span>
 
             <p>
-                ¿Ya tienes una cuenta?
+              ¿Ya tienes una cuenta?
 
-                <RouterLink
-                    class="login-text"
-                    to="/login"
-                >
-                    Iniciar sesión
-                </RouterLink>
+              <RouterLink
+                class="login-text"
+                to="/login"
+              >
+                Iniciar sesión
+              </RouterLink>
             </p>
 
             <span></span>
@@ -793,6 +878,10 @@ const handleActivation = async (): Promise<void> => {
   transition: 0.2s ease;
 }
 
+.input-container input.password-input {
+  padding-right: 78px;
+}
+
 .input-container input:focus {
   border-color: #7c3aed;
   background: #ffffff;
@@ -801,6 +890,30 @@ const handleActivation = async (): Promise<void> => {
 
 .input-container input[aria-invalid='true'] {
   border-color: #dc2626;
+}
+
+.toggle-password {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  padding: 4px;
+  border: none;
+  background: transparent;
+  color: #6d28d9;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.toggle-password:hover {
+  color: #4c1d95;
+}
+
+.toggle-password:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid #7c3aed;
+  outline-offset: 2px;
 }
 
 .field-error {
@@ -844,6 +957,23 @@ const handleActivation = async (): Promise<void> => {
 .password-strength span {
   color: #737373;
   font-size: 11px;
+}
+
+.password-requirements {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px 10px;
+  color: #737373;
+  font-size: 11px;
+}
+
+.password-requirements span {
+  transition: 0.2s ease;
+}
+
+.password-requirements span.valid {
+  color: #15803d;
+  font-weight: 600;
 }
 
 .error-message {
@@ -1024,6 +1154,10 @@ const handleActivation = async (): Promise<void> => {
   .register-header h2,
   .status-content h2 {
     font-size: 30px;
+  }
+
+  .password-requirements {
+    grid-template-columns: 1fr;
   }
 }
 </style>
