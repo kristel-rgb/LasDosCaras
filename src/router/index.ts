@@ -1,8 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import RegisterView from '@/views/RegisterView.vue'
-
-import HomeView from '@/views/HomeView.vue'
+import TableroView from '@/views/TableroView.vue'
 import LoginView from '@/views/LoginView.vue'
 
 // Configuración principal de las rutas de la aplicación
@@ -11,9 +10,10 @@ const router = createRouter({
 
   routes: [
   {
-    // Al entrar a la aplicación enviamos al usuario al login
+    // Al entrar a la aplicación mostramos el tablero principal público
     path: '/',
-    redirect: '/login',
+    name: 'tablero',
+    component: TableroView,
   },
   {
     path: '/login',
@@ -25,12 +25,7 @@ const router = createRouter({
     name: 'register',
     component: RegisterView,
   },
-  {
-    path: '/home',
-    name: 'home',
-    component: HomeView,
-    meta: { requiresAuth: true },
-  },
+
 ],
 })
 
@@ -45,7 +40,7 @@ router.beforeEach((to) => {
 
   // Si ya inició sesión, no puede volver a la pantalla de login
   if (to.path === '/login' && storedSession) {
-    return '/home'
+    return '/'
   }
 })
 
