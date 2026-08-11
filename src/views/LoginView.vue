@@ -57,7 +57,7 @@ const handleLogin = async () => {
     )
 
     // Redirigimos al usuario después de iniciar sesión correctamente
-    router.push('/home')
+    router.push('/')
   } catch (error) {
     // Mostramos el mensaje generado por el servicio
     if (error instanceof Error) {
