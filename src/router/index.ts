@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import RegisterView from '@/views/RegisterView.vue'
 import TableroView from '@/views/TableroView.vue'
 import LoginView from '@/views/LoginView.vue'
+import ViewDetailView from '@/views/ViewDetailView.vue'
 
 // Configuración principal de las rutas de la aplicación
 const router = createRouter({
@@ -24,6 +25,11 @@ const router = createRouter({
     path: '/register',
     name: 'register',
     component: RegisterView,
+  },
+  {
+  path: '/views/:id',
+  name: 'view-detail',
+  component: ViewDetailView,
   },
 
 ],
