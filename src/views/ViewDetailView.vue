@@ -27,6 +27,7 @@ import {
 import {
   getViewById,
   reactToViewSide,
+  unpublishViewById,
 } from '@/services/viewsService'
 
 import { useAuthStore } from '@/stores/auth'
@@ -35,10 +36,10 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
-// Publicación real obtenida desde el API
+// Publicación obtenida desde el API
 const view = ref<PoliticalView | null>(null)
 
-// Estados de carga y error de la publicación
+// Estados de carga y error
 const loading = ref(true)
 const errorMessage = ref('')
 
@@ -48,108 +49,30 @@ const favoriteLoading = ref(false)
 const favoriteMessage = ref('')
 const favoriteError = ref('')
 
-// Estado utilizado al compartir
+// Estado para compartir
 const shareMessage = ref('')
 
-// Estados utilizados para likes y dislikes
+// Estados para likes y dislikes
 const reactionLoading = ref<Record<string, boolean>>({})
 const reactionMessage = ref('')
 const reactionError = ref('')
 
-// Datos temporales utilizados únicamente
-// mientras no existan publicaciones reales
-const mockView: PoliticalView = {
-  id: 'demo-view',
-  categoryId: 'demo-category',
-  authorId: 'demo-author',
-  status: 'PUBLISHED',
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
+// Estados utilizados al despublicar
+const unpublishLoading = ref(false)
+const unpublishMessage = ref('')
+const unpublishError = ref('')
 
-  category: {
-    id: 'demo-category',
-    name: 'Economía',
-  },
 
-  author: {
-    id: 'demo-author',
-    name: 'Kristel Bravo',
-  },
-
-  sides: [
-    {
-      id: 'demo-side-a',
-      type: 'SIDE',
-      title:
-        'El libre comercio impulsa el crecimiento económico',
-      description:
-        'Los acuerdos de libre comercio pueden facilitar el intercambio entre países, ampliar mercados y reducir barreras para empresas y consumidores.',
-      sources: [
-        {
-          id: 'source-a-1',
-          type: 'LINK',
-          url: 'https://example.com/article',
-          label: 'Análisis económico',
-        },
-      ],
-      likeCount: 18,
-      dislikeCount: 4,
-      myReaction: null,
-    },
-    {
-      id: 'demo-side-b',
-      type: 'COUNTERPART',
-      title:
-        'El proteccionismo puede proteger industrias nacionales',
-      description:
-        'Los aranceles y otras medidas de protección pueden ayudar a determinadas industrias locales a competir frente a productos importados.',
-      sources: [
-        {
-          id: 'source-b-1',
-          type: 'YOUTUBE',
-          url: 'https://youtu.be/owOoMaSlAIE?si=5LgWsYdZB1gawgUN',
-          label: 'Video explicativo',
-        },
-      ],
-      likeCount: 12,
-      dislikeCount: 7,
-      myReaction: null,
-    },
-  ],
-
-  hashtags: [
-    {
-      id: 'tag-1',
-      name: 'economia',
-    },
-    {
-      id: 'tag-2',
-      name: 'comercio',
-    },
-  ],
-
-  _count: {
-    threads: 3,
-  },
-
-  totalLikes: 30,
-  totalDislikes: 11,
-  isFavorite: false,
-}
-
-// Mientras no exista una publicación real,
-// utilizamos los datos temporales
-const displayedView = computed(() => {
-  return view.value ?? mockView
-})
-
-// Indica si el usuario actual es el autor de la publicación
+// Indica si el usuario actual es el autor
 const isAuthor = computed(() => {
-  return (
-    authStore.user?.id ===
-    displayedView.value.authorId
-  )
+  if (!view.value || !authStore.user) {
+    return false
+  }
+
+  return authStore.user.id === view.value.authorId
 })
+
+
 
 // Indica si el usuario actual es superadministrador
 const isSuperadmin = computed(() => {
@@ -157,7 +80,6 @@ const isSuperadmin = computed(() => {
 })
 
 // Mantiene sincronizado el favorito
-// cuando se carga una publicación real
 watch(
   () => view.value?.isFavorite,
   (newValue) => {
@@ -166,6 +88,7 @@ watch(
     }
   },
 )
+
 
 // Obtiene la publicación utilizando el ID de la URL
 const loadView = async (): Promise<void> => {
@@ -189,9 +112,10 @@ const loadView = async (): Promise<void> => {
       authStore.token ?? undefined,
     )
 
-    // Sincroniza el favorito con la respuesta del API
     isFavorite.value = view.value.isFavorite
   } catch (error) {
+    view.value = null
+
     if (error instanceof Error) {
       errorMessage.value = error.message
     } else {
@@ -208,7 +132,6 @@ const toggleFavorite = async (): Promise<void> => {
   favoriteMessage.value = ''
   favoriteError.value = ''
 
-  // Los favoritos requieren autenticación
   if (
     !authStore.isAuthenticated ||
     !authStore.token
@@ -220,16 +143,7 @@ const toggleFavorite = async (): Promise<void> => {
     return
   }
 
-  // No enviamos el ID ficticio de la demo al API
-  if (!view.value) {
-    favoriteMessage.value =
-      'El favorito funcionará cuando exista una publicación real.'
-
-    return
-  }
-
-  // Evita múltiples solicitudes simultáneas
-  if (favoriteLoading.value) {
+  if (!view.value || favoriteLoading.value) {
     return
   }
 
@@ -265,7 +179,7 @@ const toggleFavorite = async (): Promise<void> => {
   }
 }
 
-// Registra un like o dislike en un lado específico
+// Registra un like o dislike
 const handleReaction = async (
   sideType: ViewSideType,
   reaction: ReactionType,
@@ -273,7 +187,6 @@ const handleReaction = async (
   reactionMessage.value = ''
   reactionError.value = ''
 
-  // Las reacciones requieren autenticación
   if (
     !authStore.isAuthenticated ||
     !authStore.token
@@ -285,16 +198,10 @@ const handleReaction = async (
     return
   }
 
-  // Mientras usamos la demo no enviamos
-  // información ficticia al API
   if (!view.value) {
-    reactionMessage.value =
-      'Los likes y dislikes funcionarán cuando exista una publicación real.'
-
     return
   }
 
-  // Busca el lado correspondiente
   const side = view.value.sides.find(
     (item) => item.type === sideType,
   )
@@ -306,7 +213,6 @@ const handleReaction = async (
     return
   }
 
-  // Cada lado mantiene su propio estado de carga
   if (reactionLoading.value[side.id]) {
     return
   }
@@ -321,12 +227,10 @@ const handleReaction = async (
       authStore.token,
     )
 
-    // Actualiza únicamente el lado que recibió la reacción
     side.likeCount = response.likeCount
     side.dislikeCount = response.dislikeCount
     side.myReaction = response.myReaction
 
-    // Actualiza los totales generales
     view.value.totalLikes =
       view.value.sides.reduce(
         (total, currentSide) =>
@@ -357,12 +261,16 @@ const handleReaction = async (
   }
 }
 
-// Comparte la publicación o copia su enlace
+// Comparte la publicación o copia el enlace
 const shareView = async (): Promise<void> => {
+  if (!view.value) {
+    return
+  }
+
   shareMessage.value = ''
 
   const title =
-    displayedView.value.sides.find(
+    view.value.sides.find(
       (side) => side.type === 'SIDE',
     )?.title ?? 'Publicación de LasDosCaras'
 
@@ -373,8 +281,6 @@ const shareView = async (): Promise<void> => {
     url: window.location.href,
   }
 
-  // Intenta utilizar primero el menú nativo
-  // para compartir del dispositivo
   if (
     typeof navigator.share === 'function'
   ) {
@@ -386,8 +292,6 @@ const shareView = async (): Promise<void> => {
 
       return
     } catch (error) {
-      // Si la persona cancela el menú,
-      // no mostramos ningún error
       if (
         error instanceof DOMException &&
         error.name === 'AbortError'
@@ -397,8 +301,6 @@ const shareView = async (): Promise<void> => {
     }
   }
 
-  // Si compartir no está disponible,
-  // copiamos el enlace al portapapeles
   try {
     await navigator.clipboard.writeText(
       shareData.url,
@@ -412,14 +314,13 @@ const shareView = async (): Promise<void> => {
   }
 }
 
-// Convierte una URL de YouTube en una URL válida para iframe
+// Convierte una URL de YouTube en URL de iframe
 const getYoutubeEmbedUrl = (
   url: string,
 ): string | null => {
   try {
     const parsedUrl = new URL(url)
 
-    // Formato youtube.com/watch?v=...
     if (
       parsedUrl.hostname.includes('youtube.com')
     ) {
@@ -431,7 +332,6 @@ const getYoutubeEmbedUrl = (
       }
     }
 
-    // Formato youtu.be/...
     if (
       parsedUrl.hostname.includes('youtu.be')
     ) {
@@ -449,9 +349,8 @@ const getYoutubeEmbedUrl = (
   }
 }
 
-// Redirige al formulario de edición de la publicación
+// Redirige al formulario de edición
 const editView = async (): Promise<void> => {
-  // Durante la demo no existe un ID real para editar
   if (!view.value) {
     return
   }
@@ -464,24 +363,70 @@ const editView = async (): Promise<void> => {
   })
 }
 
-// Acción de despublicar.
-// La conexión real con el API se completará
-// cuando exista una publicación real para probar.
-const unpublishView = (): void => {
-  if (!view.value) {
+// Despublica la publicación actual
+const unpublishView = async (): Promise<void> => {
+  unpublishMessage.value = ''
+  unpublishError.value = ''
+
+  if (
+    !view.value ||
+    !authStore.token
+  ) {
     return
   }
 
-  console.log(
-    'Pendiente despublicar publicación:',
-    view.value.id,
+  // Protección adicional en frontend
+  if (!isSuperadmin.value) {
+    unpublishError.value =
+      'No tienes permiso para realizar esta acción.'
+
+    return
+  }
+
+  // Confirmación antes de realizar una acción destructiva
+  const confirmed = window.confirm(
+    '¿Estás seguro de que deseas despublicar esta publicación?',
   )
+
+  if (!confirmed) {
+    return
+  }
+
+  if (unpublishLoading.value) {
+    return
+  }
+
+  unpublishLoading.value = true
+
+  try {
+    // Despublicamos la publicación en el API
+    await unpublishViewById(
+      view.value.id,
+      authStore.token,
+    )
+
+    // Actualizamos inmediatamente el estado en pantalla
+    view.value.status = 'UNPUBLISHED'
+
+    unpublishMessage.value =
+      'La publicación fue despublicada correctamente.'
+  } catch (error) {
+    if (error instanceof Error) {
+      unpublishError.value = error.message
+    } else {
+      unpublishError.value =
+        'Ocurrió un error inesperado.'
+    }
+  } finally {
+    unpublishLoading.value = false
+  }
 }
 
 onMounted(() => {
   loadView()
 })
 </script>
+
 
 <template>
   <AppNavbar />
@@ -498,347 +443,429 @@ onMounted(() => {
         Volver al tablero
       </button>
 
-      <!-- Aviso temporal -->
+      <!-- Cargando -->
       <div
-        v-if="!view"
-        class="demo-notice"
+        v-if="loading"
+        class="state-container"
       >
-        Vista temporal con datos de ejemplo
+        <div class="loader"></div>
+        <p>Cargando publicación...</p>
       </div>
 
-      <!-- Encabezado -->
-      <header class="detail-header">
-        <div class="detail-meta">
-          <span class="category-badge">
-            {{ displayedView.category.name }}
-          </span>
-
-          <span
-            class="publication-status"
-            :class="{
-              unpublished:
-                displayedView.status === 'UNPUBLISHED',
-            }"
-          >
-            {{
-              displayedView.status === 'PUBLISHED'
-                ? 'Publicada'
-                : 'No publicada'
-            }}
-          </span>
-        </div>
-
-        <h1>
-          {{ displayedView.sides[0]?.title }}
-        </h1>
-
-        <div class="publication-info">
-          <div class="author-avatar">
-            {{
-              displayedView.author.name
-                .charAt(0)
-                .toUpperCase()
-            }}
-          </div>
-
-          <div>
-            <p class="author">
-              Publicado por
-              <strong>
-                {{ displayedView.author.name }}
-              </strong>
-            </p>
-
-            <p class="publication-date">
-              {{
-                new Intl.DateTimeFormat('es-CR', {
-                  day: '2-digit',
-                  month: 'long',
-                  year: 'numeric',
-                }).format(
-                  new Date(displayedView.createdAt),
-                )
-              }}
-            </p>
-          </div>
-        </div>
-
-        <!-- Acciones de la publicación -->
-        <div class="publication-actions">
-          <button
-            type="button"
-            class="action-button"
-            :class="{ active: isFavorite }"
-            :disabled="favoriteLoading"
-            @click="toggleFavorite"
-          >
-            <span aria-hidden="true">
-              {{ isFavorite ? '★' : '☆' }}
-            </span>
-
-            {{
-              favoriteLoading
-                ? 'Guardando...'
-                : isFavorite
-                  ? 'Guardado'
-                  : 'Guardar'
-            }}
-          </button>
-
-          <button
-            type="button"
-            class="action-button"
-            @click="shareView"
-          >
-            <span aria-hidden="true">↗</span>
-            Compartir
-          </button>
-
-          <!-- Editar: solamente el autor -->
-          <button
-            v-if="isAuthor"
-            type="button"
-            class="action-button edit-button"
-            @click="editView"
-          >
-            <span aria-hidden="true">✎</span>
-            Editar
-          </button>
-
-          <!-- Despublicar: solamente superadmin -->
-          <button
-            v-if="isSuperadmin"
-            type="button"
-            class="action-button danger-button"
-            @click="unpublishView"
-          >
-            <span aria-hidden="true">⊘</span>
-            Despublicar
-          </button>
-        </div>
-
-        <!-- Mensajes de las acciones -->
-        <p
-          v-if="favoriteMessage"
-          class="action-message success"
-        >
-          {{ favoriteMessage }}
-        </p>
-
-        <p
-          v-if="favoriteError"
-          class="action-message error"
-        >
-          {{ favoriteError }}
-        </p>
-
-        <p
-          v-if="shareMessage"
-          class="action-message success"
-        >
-          {{ shareMessage }}
-        </p>
-      </header>
-
-      <!-- Hashtags -->
+      <!-- Error -->
       <div
-        v-if="displayedView.hashtags.length"
-        class="hashtags"
+        v-else-if="errorMessage"
+        class="state-container error-state"
       >
-        <span
-          v-for="hashtag in displayedView.hashtags"
-          :key="hashtag.id"
+        <strong>
+          No pudimos cargar la publicación.
+        </strong>
+
+        <p>
+          {{ errorMessage }}
+        </p>
+
+        <button
+          type="button"
+          @click="loadView"
         >
-          #{{ hashtag.name }}
-        </span>
+          Intentar nuevamente
+        </button>
       </div>
 
-      <!-- Dos posturas -->
-      <section class="sides-grid">
-        <article
-          v-for="side in displayedView.sides"
-          :key="side.id"
-          class="side-card"
-          :class="{
-            'side-a': side.type === 'SIDE',
-            'side-b': side.type === 'COUNTERPART',
-          }"
-        >
-          <header class="side-header">
-            <span class="side-label">
-              {{
-                side.type === 'SIDE'
-                  ? 'LADO A'
-                  : 'LADO B'
-              }}
+      <!-- Publicación real -->
+      <template v-else-if="view">
+        <header class="detail-header">
+          <div class="detail-meta">
+            <span class="category-badge">
+              {{ view.category.name }}
             </span>
 
             <span
-              class="side-indicator"
-              aria-hidden="true"
-            ></span>
-          </header>
+              class="publication-status"
+              :class="{
+                unpublished:
+                  view.status === 'UNPUBLISHED',
+              }"
+            >
+              {{
+                view.status === 'PUBLISHED'
+                  ? 'Publicada'
+                  : 'No publicada'
+              }}
+            </span>
+          </div>
 
-          <h2>
-            {{ side.title }}
-          </h2>
+          <h1>
+            {{
+              view.sides.find(
+                (side) => side.type === 'SIDE',
+              )?.title
+            }}
+          </h1>
 
-          <p class="description">
-            {{ side.description }}
+          <div class="publication-info">
+            <div class="author-avatar">
+              {{
+                view.author.name
+                  .charAt(0)
+                  .toUpperCase()
+              }}
+            </div>
+
+            <div>
+              <p class="author">
+                Publicado por
+                <strong>
+                  {{ view.author.name }}
+                </strong>
+              </p>
+
+              <p class="publication-date">
+                {{
+                  new Intl.DateTimeFormat(
+                    'es-CR',
+                    {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric',
+                    },
+                  ).format(
+                    new Date(view.createdAt),
+                  )
+                }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Acciones -->
+          <div class="publication-actions">
+            <button
+              type="button"
+              class="action-button"
+              :class="{ active: isFavorite }"
+              :disabled="favoriteLoading"
+              @click="toggleFavorite"
+            >
+              <span aria-hidden="true">
+                {{ isFavorite ? '★' : '☆' }}
+              </span>
+
+              {{
+                favoriteLoading
+                  ? 'Guardando...'
+                  : isFavorite
+                    ? 'Guardado'
+                    : 'Guardar'
+              }}
+            </button>
+
+            <button
+              type="button"
+              class="action-button"
+              @click="shareView"
+            >
+              <span aria-hidden="true">↗</span>
+              Compartir
+            </button>
+
+            <button
+              v-if="isAuthor"
+              type="button"
+              class="action-button edit-button"
+              @click="editView"
+            >
+              <span aria-hidden="true">✎</span>
+              Editar
+            </button>
+
+            <button
+              v-if="
+                isSuperadmin &&
+                view.status === 'PUBLISHED'
+              "
+              type="button"
+              class="action-button danger-button"
+              :disabled="unpublishLoading"
+              @click="unpublishView"
+            >
+              <span aria-hidden="true">⊘</span>
+
+              {{
+                unpublishLoading
+                  ? 'Despublicando...'
+                  : 'Despublicar'
+              }}
+            </button>
+          </div>
+
+          <p
+            v-if="favoriteMessage"
+            class="action-message success"
+            role="status"
+          >
+            {{ favoriteMessage }}
           </p>
 
-        <!-- Fuentes -->
-        <section
-        v-if="side.sources.length"
-        class="sources"
-        >
-        <h3>Fuentes</h3>
+          <p
+            v-if="favoriteError"
+            class="action-message error"
+            role="alert"
+          >
+            {{ favoriteError }}
+          </p>
 
-        <div
-            v-for="source in side.sources"
-            :key="source.id"
-            class="source-item"
-        >
-            <a
-            :href="source.url"
-            target="_blank"
-            rel="noopener"
-            >
-            <span aria-hidden="true">
-                {{
-                source.type === 'YOUTUBE'
-                    ? '▶'
-                    : source.type === 'DOCUMENT'
-                    ? '▤'
-                    : '↗'
-                }}
-            </span>
-
-            {{ source.label ?? source.url }}
-            </a>
-
-            <div
-            v-if="
-                source.type === 'YOUTUBE' &&
-                getYoutubeEmbedUrl(source.url)
-            "
-            class="youtube-container"
-            >
-            <iframe
-                :src="getYoutubeEmbedUrl(source.url) ?? undefined"
-                :title="source.label ?? 'Video de YouTube'"
-                allow="
-                accelerometer;
-                autoplay;
-                clipboard-write;
-                encrypted-media;
-                gyroscope;
-                picture-in-picture
-                "
-                allowfullscreen
-            ></iframe>
-            </div>
-        </div>
-        </section>
-
-        <p
-            v-if="reactionMessage"
-            class="reaction-message success"
+          <p
+            v-if="shareMessage"
+            class="action-message success"
             role="status"
-            >
-            {{ reactionMessage }}
+          >
+            {{ shareMessage }}
+          </p>
+
+          <p
+            v-if="unpublishMessage"
+            class="action-message success"
+            role="status"
+          >
+            {{ unpublishMessage }}
+          </p>
+
+          <p
+            v-if="unpublishError"
+            class="action-message error"
+            role="alert"
+          >
+            {{ unpublishError }}
+          </p>
+
+        </header>
+
+        <!-- Hashtags -->
+        <div
+          v-if="view.hashtags.length"
+          class="hashtags"
+        >
+          <span
+            v-for="hashtag in view.hashtags"
+            :key="hashtag.id"
+          >
+            #{{ hashtag.name }}
+          </span>
+        </div>
+
+        <!-- Lado A y Lado B -->
+        <section class="sides-grid">
+          <article
+            v-for="side in view.sides"
+            :key="side.id"
+            class="side-card"
+            :class="{
+              'side-a': side.type === 'SIDE',
+              'side-b':
+                side.type === 'COUNTERPART',
+            }"
+          >
+            <header class="side-header">
+              <span class="side-label">
+                {{
+                  side.type === 'SIDE'
+                    ? 'LADO A'
+                    : 'LADO B'
+                }}
+              </span>
+
+              <span
+                class="side-indicator"
+                aria-hidden="true"
+              ></span>
+            </header>
+
+            <h2>
+              {{ side.title }}
+            </h2>
+
+            <p class="description">
+              {{ side.description }}
             </p>
 
-            <p
-            v-if="reactionError"
-            class="reaction-message error"
-            role="alert"
+            <!-- Fuentes -->
+            <section
+              v-if="side.sources.length"
+              class="sources"
             >
-            {{ reactionError }}
-        </p>
+              <h3>Fuentes</h3>
 
-          <!-- Reacciones -->
+              <div
+                v-for="source in side.sources"
+                :key="source.id"
+                class="source-item"
+              >
+                <a
+                  :href="source.url"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  <span aria-hidden="true">
+                    {{
+                      source.type === 'YOUTUBE'
+                        ? '▶'
+                        : source.type === 'DOCUMENT'
+                          ? '▤'
+                          : '↗'
+                    }}
+                  </span>
+
+                  {{
+                    source.label ??
+                    source.url
+                  }}
+                </a>
+
+                <div
+                  v-if="
+                    source.type === 'YOUTUBE' &&
+                    getYoutubeEmbedUrl(
+                      source.url,
+                    )
+                  "
+                  class="youtube-container"
+                >
+                  <iframe
+                    :src="
+                      getYoutubeEmbedUrl(
+                        source.url,
+                      ) ?? undefined
+                    "
+                    :title="
+                      source.label ??
+                      'Video de YouTube'
+                    "
+                    allow="
+                      accelerometer;
+                      autoplay;
+                      clipboard-write;
+                      encrypted-media;
+                      gyroscope;
+                      picture-in-picture
+                    "
+                    allowfullscreen
+                  ></iframe>
+                </div>
+              </div>
+            </section>
+
+            <!-- Reacciones -->
             <footer class="reactions">
-            <button
+              <button
                 type="button"
                 :class="{
-                active: side.myReaction === 'LIKE',
+                  active:
+                    side.myReaction === 'LIKE',
                 }"
-                :disabled="reactionLoading[side.id]"
+                :disabled="
+                  reactionLoading[side.id]
+                "
                 @click="
-                handleReaction(
+                  handleReaction(
                     side.type,
                     'LIKE',
-                )
+                  )
                 "
-            >
-                <span aria-hidden="true">👍</span>
+              >
+                <span aria-hidden="true">
+                  👍
+                </span>
 
                 {{
-                reactionLoading[side.id]
+                  reactionLoading[side.id]
                     ? '...'
                     : side.likeCount
                 }}
-            </button>
+              </button>
 
-            <button
+              <button
                 type="button"
                 :class="{
-                active: side.myReaction === 'DISLIKE',
+                  active:
+                    side.myReaction ===
+                    'DISLIKE',
                 }"
-                :disabled="reactionLoading[side.id]"
+                :disabled="
+                  reactionLoading[side.id]
+                "
                 @click="
-                handleReaction(
+                  handleReaction(
                     side.type,
                     'DISLIKE',
-                )
+                  )
                 "
-            >
-                <span aria-hidden="true">👎</span>
+              >
+                <span aria-hidden="true">
+                  👎
+                </span>
 
                 {{
-                reactionLoading[side.id]
+                  reactionLoading[side.id]
                     ? '...'
                     : side.dislikeCount
                 }}
-            </button>
+              </button>
             </footer>
-        </article>
-      </section>
+          </article>
+        </section>
 
-      <!-- Resumen -->
-      <section class="detail-summary">
-        <div>
-          <span>Opiniones</span>
+        <!-- Mensajes de reacciones -->
+        <p
+          v-if="reactionMessage"
+          class="reaction-message success"
+          role="status"
+        >
+          {{ reactionMessage }}
+        </p>
 
-          <strong>
-            {{
-              displayedView.totalLikes +
-              displayedView.totalDislikes
-            }}
-          </strong>
-        </div>
+        <p
+          v-if="reactionError"
+          class="reaction-message error"
+          role="alert"
+        >
+          {{ reactionError }}
+        </p>
 
-        <div>
-          <span>Hilos</span>
+        <!-- Resumen -->
+        <section class="detail-summary">
+          <div>
+            <span>Opiniones</span>
 
-          <strong>
-            {{ displayedView._count.threads }}
-          </strong>
-        </div>
+            <strong>
+              {{
+                view.totalLikes +
+                view.totalDislikes
+              }}
+            </strong>
+          </div>
 
-        <div>
-          <span>Estado</span>
+          <div>
+            <span>Hilos</span>
 
-          <strong>
-            {{
-              isFavorite
-                ? 'Favorito'
-                : 'Sin guardar'
-            }}
-          </strong>
-        </div>
-      </section>
+            <strong>
+              {{ view._count.threads }}
+            </strong>
+          </div>
+
+          <div>
+            <span>Estado</span>
+
+            <strong>
+              {{
+                isFavorite
+                  ? 'Favorito'
+                  : 'Sin guardar'
+              }}
+            </strong>
+          </div>
+        </section>
+      </template>
     </section>
   </main>
 </template>

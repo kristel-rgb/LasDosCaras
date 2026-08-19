@@ -117,7 +117,11 @@ export const getViewById = async (
       )
     }
 
-    return await response.json()
+    const data: {
+    view: PoliticalView
+  } = await response.json()
+
+  return data.view
   } catch (error) {
     if (error instanceof TypeError) {
       throw new Error(
@@ -182,6 +186,68 @@ export const reactToViewSide = async (
     }
 
     return await response.json()
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error(
+        'No fue posible conectar con el servidor.',
+      )
+    }
+
+    if (error instanceof Error) {
+      throw error
+    }
+
+    throw new Error(
+      'Ocurrió un error inesperado.',
+    )
+  }
+}
+
+// Despublica una publicación.
+// Esta acción solamente está permitida para SUPERADMIN.
+export const unpublishViewById = async (
+  viewId: string,
+  token: string,
+): Promise<PoliticalView> => {
+  try {
+    const response = await fetch(
+      `${API_URL}/api/views/${viewId}/unpublish`,
+      {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    )
+
+    if (response.status === 401) {
+      throw new Error(
+        'La sesión ha expirado.',
+      )
+    }
+
+    if (response.status === 403) {
+      throw new Error(
+        'No tienes permiso para despublicar esta publicación.',
+      )
+    }
+
+    if (response.status === 404) {
+      throw new Error(
+        'La publicación no fue encontrada.',
+      )
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        'No fue posible despublicar la publicación.',
+      )
+    }
+
+    const data = await response.json()
+
+    // La API puede devolver { view: {...} }
+    return data.view ?? data
   } catch (error) {
     if (error instanceof TypeError) {
       throw new Error(

@@ -419,6 +419,7 @@ const handleLogout = async (): Promise<void> => {
           <button
             class="create-button"
             type="button"
+            @click="router.push('/views/new')"
           >
             <span>+</span>
             Publicar
