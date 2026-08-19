@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import RegisterView from '@/views/RegisterView.vue'
 import TableroView from '@/views/TableroView.vue'
 import LoginView from '@/views/LoginView.vue'
+import CreateEditView from '@/views/CreateEditView.vue'
 
 // Configuración principal de las rutas de la aplicación
 const router = createRouter({
@@ -25,6 +26,18 @@ const router = createRouter({
     name: 'register',
     component: RegisterView,
   },
+  {
+  path: '/views/new',
+  name: 'view-create',
+  component: CreateEditView,
+  meta: { requiresAuth: true },
+},
+{
+  path: '/views/:id/edit',
+  name: 'view-edit',
+  component: CreateEditView,
+  meta: { requiresAuth: true },
+},
 
 ],
 })
