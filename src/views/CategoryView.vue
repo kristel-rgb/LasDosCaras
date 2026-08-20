@@ -3,7 +3,13 @@ import {
   computed,
   onMounted,
   ref,
+  watch,
 } from 'vue'
+
+import {
+  useRoute,
+  useRouter,
+} from 'vue-router'
 
 import AppNavbar from '@/components/AppNavbar.vue'
 import ViewCard from '@/components/ViewCard.vue'
@@ -15,40 +21,90 @@ import { getCategories } from '@/services/categoriesService'
 import { getViews } from '@/services/viewsService'
 import { useAuthStore } from '@/stores/auth'
 
+const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
+
+// Categoría actual
+const category = ref<Category | null>(null)
+
 // Publicaciones
 const views = ref<PoliticalView[]>([])
 const totalViews = ref(0)
-const authStore = useAuthStore()
+
 // Paginación
 const currentPage = ref(1)
 const pageSize = 5
+
 const loadingMore = ref(false)
 const loadMoreError = ref('')
 
-// Categorías
-const categories = ref<Category[]>([])
-
-// Filtros
-const selectedCategory = ref('')
+// Orden
 const selectedSort = ref<
   'recent' | 'likes' | 'dislikes'
 >('recent')
 
-// Búsqueda
-const searchQuery = ref('')
-
 // Estados
 const loading = ref(true)
-const categoriesLoading = ref(true)
 const errorMessage = ref('')
 
-// Indica si todavía quedan publicaciones por cargar
+// Obtiene el ID de categoría desde la URL
+const categoryId = computed(() => {
+  const id = route.params.id
+
+  return typeof id === 'string'
+    ? id
+    : ''
+})
+
+// Indica si quedan publicaciones por cargar
 const hasMore = computed(() => {
   return views.value.length < totalViews.value
 })
 
-// Carga la primera página de publicaciones
+// Obtiene los datos de la categoría actual
+const loadCategory = async (): Promise<boolean> => {
+  try {
+    const response = await getCategories()
+
+    const foundCategory =
+      response.categories.find(
+        (item) =>
+          item.id === categoryId.value &&
+          !item.deletedAt,
+      )
+
+    if (!foundCategory) {
+      category.value = null
+
+      throw new Error(
+        'La categoría no fue encontrada.',
+      )
+    }
+
+    category.value = foundCategory
+
+    return true
+  } catch (error) {
+    category.value = null
+
+    if (error instanceof Error) {
+      errorMessage.value = error.message
+    } else {
+      errorMessage.value =
+        'No fue posible cargar la categoría.'
+    }
+
+    return false
+  }
+}
+
+// Carga la primera página de la categoría
 const loadViews = async (): Promise<void> => {
+  if (!categoryId.value) {
+    return
+  }
+
   loading.value = true
   errorMessage.value = ''
   loadMoreError.value = ''
@@ -57,8 +113,7 @@ const loadViews = async (): Promise<void> => {
   try {
     const response = await getViews(
       {
-        category:
-          selectedCategory.value || undefined,
+        category: categoryId.value,
         sort: selectedSort.value,
         page: 1,
         limit: pageSize,
@@ -73,18 +128,19 @@ const loadViews = async (): Promise<void> => {
       errorMessage.value = error.message
     } else {
       errorMessage.value =
-        'Ocurrió un error inesperado.'
+        'No fue posible cargar las publicaciones.'
     }
   } finally {
     loading.value = false
   }
 }
 
-// Carga la siguiente página y conserva las anteriores
+// Carga la siguiente página
 const loadMoreViews = async (): Promise<void> => {
   if (
     !hasMore.value ||
-    loadingMore.value
+    loadingMore.value ||
+    !categoryId.value
   ) {
     return
   }
@@ -92,13 +148,13 @@ const loadMoreViews = async (): Promise<void> => {
   loadingMore.value = true
   loadMoreError.value = ''
 
-  const nextPage = currentPage.value + 1
+  const nextPage =
+    currentPage.value + 1
 
   try {
     const response = await getViews(
       {
-        category:
-          selectedCategory.value || undefined,
+        category: categoryId.value,
         sort: selectedSort.value,
         page: nextPage,
         limit: pageSize,
@@ -107,11 +163,16 @@ const loadMoreViews = async (): Promise<void> => {
     )
 
     views.value.push(...response.views)
-    totalViews.value = response.total
-    currentPage.value = nextPage
+
+    totalViews.value =
+      response.total
+
+    currentPage.value =
+      nextPage
   } catch (error) {
     if (error instanceof Error) {
-      loadMoreError.value = error.message
+      loadMoreError.value =
+        error.message
     } else {
       loadMoreError.value =
         'No fue posible cargar más publicaciones.'
@@ -121,66 +182,81 @@ const loadMoreViews = async (): Promise<void> => {
   }
 }
 
-// Carga las categorías reales del API
-const loadCategories = async (): Promise<void> => {
-  categoriesLoading.value = true
-
-  try {
-    const response = await getCategories()
-
-    categories.value = response.categories
-  } catch (error) {
-    console.error(
-      'No fue posible cargar las categorías.',
-      error,
-    )
-  } finally {
-    categoriesLoading.value = false
-  }
-}
-
-// Cambia la categoría y vuelve a la primera página
-const selectCategory = async (
-  categoryId: string,
-): Promise<void> => {
-  selectedCategory.value = categoryId
-
-  await loadViews()
-}
-
-// Cambia el orden y vuelve a la primera página
+// Cambia el orden de las publicaciones
 const handleSortChange = async (): Promise<void> => {
   await loadViews()
 }
 
+// Carga toda la página
+const loadPage = async (): Promise<void> => {
+  loading.value = true
+  errorMessage.value = ''
+
+  if (!categoryId.value) {
+    errorMessage.value =
+      'El identificador de la categoría no es válido.'
+
+    loading.value = false
+    return
+  }
+
+  const categoryLoaded =
+    await loadCategory()
+
+  if (!categoryLoaded) {
+    loading.value = false
+    return
+  }
+
+  await loadViews()
+}
+
 // Carga inicial
-onMounted(async () => {
-  await Promise.all([
-    loadCategories(),
-    loadViews(),
-  ])
+onMounted(() => {
+  loadPage()
 })
+
+// Si cambia el ID sin desmontar el componente,
+// vuelve a cargar la categoría
+watch(
+  () => route.params.id,
+  () => {
+    loadPage()
+  },
+)
 </script>
 
 <template>
-  <AppNavbar
-    v-model:searchQuery="searchQuery"
-  />
+  <AppNavbar />
 
-  <main class="dashboard-page">
-    <section class="dashboard-container">
+  <main class="category-page">
+    <section class="category-container">
+      <!-- Regresar -->
+      <button
+        class="back-button"
+        type="button"
+        @click="router.push('/')"
+      >
+        ← Volver al tablero
+      </button>
+
       <!-- Encabezado -->
-      <header class="dashboard-header">
+      <header
+        v-if="category"
+        class="category-header"
+      >
         <div>
-          <span class="dashboard-label">
-            LAS DOS CARAS
+          <span class="category-label">
+            CATEGORÍA
           </span>
 
-          <h1>Tablero Principal</h1>
+          <h1>
+            {{ category.name }}
+          </h1>
 
           <p>
-            Explora diferentes puntos de vista sobre los temas
-            que generan conversación.
+            Explora las publicaciones relacionadas
+            con {{ category.name }}.
           </p>
         </div>
 
@@ -194,62 +270,25 @@ onMounted(async () => {
         </div>
       </header>
 
-      <!-- Controles -->
+      <!-- Orden -->
       <section
-        id="categories"
-        class="dashboard-controls"
-        aria-label="Filtros de publicaciones"
+        v-if="category && !loading"
+        class="category-controls"
       >
-        <div class="filter-section">
-          <span class="filter-label">
-            Categorías
+        <div>
+          <span class="control-title">
+            Publicaciones de
+            {{ category.name }}
           </span>
-
-          <div
-            v-if="categoriesLoading"
-            class="categories-loading"
-          >
-            Cargando categorías...
-          </div>
-
-          <div
-            v-else
-            class="category-list"
-          >
-            <button
-              type="button"
-              class="category-button"
-              :class="{
-                active: selectedCategory === '',
-              }"
-              @click="selectCategory('')"
-            >
-              Todas
-            </button>
-
-            <button
-              v-for="category in categories"
-              :key="category.id"
-              type="button"
-              class="category-button"
-              :class="{
-                active:
-                  selectedCategory === category.id,
-              }"
-              @click="selectCategory(category.id)"
-            >
-              {{ category.name }}
-            </button>
-          </div>
         </div>
 
         <div class="sort-section">
-          <label for="sort">
+          <label for="category-sort">
             Ordenar por
           </label>
 
           <select
-            id="sort"
+            id="category-sort"
             v-model="selectedSort"
             @change="handleSortChange"
           >
@@ -268,23 +307,25 @@ onMounted(async () => {
         </div>
       </section>
 
-      <!-- Cargando inicial -->
+      <!-- Cargando -->
       <div
         v-if="loading"
         class="state-container"
       >
         <div class="loader"></div>
 
-        <p>Cargando publicaciones...</p>
+        <p>
+          Cargando categoría...
+        </p>
       </div>
 
-      <!-- Error inicial -->
+      <!-- Error -->
       <div
         v-else-if="errorMessage"
         class="state-container error-state"
       >
         <strong>
-          No pudimos cargar el tablero.
+          No pudimos cargar esta categoría.
         </strong>
 
         <p>
@@ -293,24 +334,24 @@ onMounted(async () => {
 
         <button
           type="button"
-          @click="loadViews"
+          @click="loadPage"
         >
           Intentar nuevamente
         </button>
       </div>
 
-      <!-- Estado vacío -->
+      <!-- Vacío -->
       <div
         v-else-if="views.length === 0"
         class="state-container"
       >
         <strong>
-          No encontramos publicaciones.
+          Esta categoría todavía no tiene publicaciones.
         </strong>
 
         <p>
-          Intenta seleccionar otra categoría
-          o cambiar los filtros.
+          Cuando existan publicaciones relacionadas,
+          aparecerán en esta sección.
         </p>
       </div>
 
@@ -318,7 +359,7 @@ onMounted(async () => {
       <template v-else>
         <section
           class="views-list"
-          aria-label="Publicaciones"
+          :aria-label="`Publicaciones de ${category?.name}`"
         >
           <ViewCard
             v-for="view in views"
@@ -327,7 +368,6 @@ onMounted(async () => {
           />
         </section>
 
-        <!-- Error al cargar otra página -->
         <p
           v-if="loadMoreError"
           class="load-more-error"
@@ -336,7 +376,6 @@ onMounted(async () => {
           {{ loadMoreError }}
         </p>
 
-        <!-- Cargar más -->
         <div
           v-if="hasMore"
           class="load-more-container"
@@ -347,11 +386,6 @@ onMounted(async () => {
             :disabled="loadingMore"
             @click="loadMoreViews"
           >
-            <span
-              v-if="loadingMore"
-              class="small-loader"
-            ></span>
-
             {{
               loadingMore
                 ? 'Cargando...'
@@ -372,9 +406,9 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.dashboard-page {
+.category-page {
   min-height: calc(100vh - 72px);
-  padding: 55px 24px;
+  padding: 45px 24px 60px;
   background: #f7f7fb;
   font-family:
     Inter,
@@ -385,13 +419,31 @@ onMounted(async () => {
     sans-serif;
 }
 
-.dashboard-container {
+.category-container {
   width: 100%;
   max-width: 1050px;
   margin: 0 auto;
 }
 
-.dashboard-header {
+.back-button {
+  margin-bottom: 28px;
+  padding: 9px 13px;
+  border: 1px solid #e4e4e7;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #52525b;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.back-button:hover {
+  border-color: #c4b5fd;
+  color: #6d28d9;
+}
+
+.category-header {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -399,7 +451,7 @@ onMounted(async () => {
   margin-bottom: 28px;
 }
 
-.dashboard-label {
+.category-label {
   display: inline-block;
   margin-bottom: 9px;
   color: #6d28d9;
@@ -408,14 +460,14 @@ onMounted(async () => {
   letter-spacing: 2px;
 }
 
-.dashboard-header h1 {
+.category-header h1 {
   margin: 0 0 8px;
   color: #18181b;
-  font-size: 36px;
+  font-size: 38px;
   letter-spacing: -1.2px;
 }
 
-.dashboard-header p {
+.category-header p {
   max-width: 620px;
   margin: 0;
   color: #71717a;
@@ -434,13 +486,11 @@ onMounted(async () => {
   font-weight: 700;
 }
 
-/* Filtros */
-
-.dashboard-controls {
+.category-controls {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 25px;
+  gap: 20px;
   margin-bottom: 25px;
   padding: 18px 20px;
   border: 1px solid #e8e7ef;
@@ -448,59 +498,22 @@ onMounted(async () => {
   background: #ffffff;
 }
 
-.filter-section {
-  min-width: 0;
-  flex: 1;
-}
-
-.filter-label,
-.sort-section label {
-  display: block;
-  margin-bottom: 9px;
-  color: #71717a;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-}
-
-.category-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-
-.category-button {
-  padding: 8px 11px;
-  border: 1px solid #e4e4e7;
-  border-radius: 20px;
-  background: #ffffff;
-  color: #71717a;
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: 0.2s ease;
-}
-
-.category-button:hover {
-  border-color: #c4b5fd;
-  color: #6d28d9;
-}
-
-.category-button.active {
-  border-color: #6d28d9;
-  background: #6d28d9;
-  color: #ffffff;
-}
-
-.categories-loading {
-  color: #a1a1aa;
+.control-title {
+  color: #52525b;
   font-size: 12px;
+  font-weight: 800;
 }
 
 .sort-section {
   width: 170px;
-  flex-shrink: 0;
+}
+
+.sort-section label {
+  display: block;
+  margin-bottom: 8px;
+  color: #71717a;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .sort-section select {
@@ -520,79 +533,13 @@ onMounted(async () => {
 
 .sort-section select:focus {
   border-color: #8b5cf6;
-  box-shadow:
-    0 0 0 3px rgba(124, 58, 237, 0.08);
 }
-
-/* Publicaciones */
 
 .views-list {
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
-
-/* Cargar más */
-
-.load-more-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 30px;
-}
-
-.load-more-button {
-  display: flex;
-  min-width: 150px;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  padding: 12px 20px;
-  border: 1px solid #6d28d9;
-  border-radius: 10px;
-  background: #ffffff;
-  color: #6d28d9;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: 0.2s ease;
-}
-
-.load-more-button:hover:not(:disabled) {
-  background: #6d28d9;
-  color: #ffffff;
-}
-
-.load-more-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.65;
-}
-
-.loaded-count {
-  color: #a1a1aa;
-  font-size: 10px;
-}
-
-.load-more-error {
-  margin: 18px 0 0;
-  color: #b91c1c;
-  font-size: 12px;
-  text-align: center;
-}
-
-.small-loader {
-  width: 14px;
-  height: 14px;
-  border: 2px solid currentColor;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-
-/* Estados */
 
 .state-container {
   display: flex;
@@ -631,7 +578,6 @@ onMounted(async () => {
 }
 
 .error-state button {
-  margin-top: 5px;
   padding: 10px 15px;
   border: none;
   border-radius: 8px;
@@ -642,8 +588,47 @@ onMounted(async () => {
   cursor: pointer;
 }
 
-.error-state button:hover {
-  background: #5b21b6;
+.load-more-container {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.load-more-button {
+  min-width: 150px;
+  padding: 12px 20px;
+  border: 1px solid #6d28d9;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #6d28d9;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.load-more-button:hover:not(:disabled) {
+  background: #6d28d9;
+  color: #ffffff;
+}
+
+.load-more-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.loaded-count {
+  color: #a1a1aa;
+  font-size: 10px;
+}
+
+.load-more-error {
+  margin-top: 18px;
+  color: #b91c1c;
+  font-size: 12px;
+  text-align: center;
 }
 
 @keyframes spin {
@@ -652,8 +637,22 @@ onMounted(async () => {
   }
 }
 
-@media (max-width: 800px) {
-  .dashboard-controls {
+@media (max-width: 700px) {
+  .category-page {
+    padding: 35px 16px;
+  }
+
+  .category-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .category-header h1 {
+    font-size: 30px;
+  }
+
+  .category-controls {
     align-items: stretch;
     flex-direction: column;
   }
@@ -663,37 +662,32 @@ onMounted(async () => {
   }
 }
 
-@media (max-width: 700px) {
-  .dashboard-page {
-    padding: 35px 16px;
-  }
-
-  .dashboard-header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 18px;
-  }
-
-  .dashboard-header h1 {
-    font-size: 30px;
-  }
-}
-
 /* Tema oscuro */
 
-:global(html[data-theme='dark'] .dashboard-page) {
+:global(html[data-theme='dark'] .category-page) {
   background: #0f1020;
 }
 
-:global(html[data-theme='dark'] .dashboard-label) {
+:global(html[data-theme='dark'] .back-button) {
+  border-color: #343447;
+  background: #171728;
+  color: #d4d4d8;
+}
+
+:global(html[data-theme='dark'] .back-button:hover) {
+  border-color: #8b5cf6;
+  color: #c4b5fd;
+}
+
+:global(html[data-theme='dark'] .category-label) {
   color: #a78bfa;
 }
 
-:global(html[data-theme='dark'] .dashboard-header h1) {
+:global(html[data-theme='dark'] .category-header h1) {
   color: #f4f4f5;
 }
 
-:global(html[data-theme='dark'] .dashboard-header p) {
+:global(html[data-theme='dark'] .category-header p) {
   color: #a1a1aa;
 }
 
@@ -703,38 +697,17 @@ onMounted(async () => {
   color: #d4d4d8;
 }
 
-/* Filtros */
-
-:global(html[data-theme='dark'] .dashboard-controls) {
+:global(html[data-theme='dark'] .category-controls) {
   border-color: #29293d;
   background: #171728;
 }
 
-:global(html[data-theme='dark'] .filter-label),
+:global(html[data-theme='dark'] .control-title) {
+  color: #d4d4d8;
+}
+
 :global(html[data-theme='dark'] .sort-section label) {
   color: #a1a1aa;
-}
-
-:global(html[data-theme='dark'] .category-button) {
-  border-color: #343447;
-  background: #1b1b2d;
-  color: #a1a1aa;
-}
-
-:global(html[data-theme='dark'] .category-button:hover) {
-  border-color: #8b5cf6;
-  background: #25243a;
-  color: #c4b5fd;
-}
-
-:global(html[data-theme='dark'] .category-button.active) {
-  border-color: #7c3aed;
-  background: #7c3aed;
-  color: #ffffff;
-}
-
-:global(html[data-theme='dark'] .categories-loading) {
-  color: #71717a;
 }
 
 :global(html[data-theme='dark'] .sort-section select) {
@@ -742,14 +715,6 @@ onMounted(async () => {
   background: #1b1b2d;
   color: #d4d4d8;
 }
-
-:global(html[data-theme='dark'] .sort-section select:focus) {
-  border-color: #8b5cf6;
-  box-shadow:
-    0 0 0 3px rgba(139, 92, 246, 0.15);
-}
-
-/* Estados */
 
 :global(html[data-theme='dark'] .state-container) {
   border-color: #29293d;
@@ -766,15 +731,16 @@ onMounted(async () => {
   border-top-color: #a78bfa;
 }
 
-/* Cargar más */
-
 :global(html[data-theme='dark'] .load-more-button) {
   border-color: #8b5cf6;
   background: #171728;
   color: #c4b5fd;
 }
 
-:global(html[data-theme='dark'] .load-more-button:hover:not(:disabled)) {
+:global(
+  html[data-theme='dark']
+  .load-more-button:hover:not(:disabled)
+) {
   background: #7c3aed;
   color: #ffffff;
 }

@@ -182,9 +182,17 @@ const shareView = async (): Promise<void> => {
       </div>
 
       <div class="header-actions">
-        <span class="category-badge">
+        <button
+          type="button"
+          class="category-badge"
+          @click="
+            router.push(
+              `/categories/${view.category.id}`,
+            )
+          "
+        >
           {{ view.category.name }}
-        </span>
+        </button>
 
         <!-- Compartir -->
       <button
@@ -438,12 +446,21 @@ const shareView = async (): Promise<void> => {
 
 .category-badge {
   padding: 7px 11px;
+  border: none;
   border-radius: 20px;
   background: #f5f3ff;
   color: #6d28d9;
+  font-family: inherit;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.category-badge:hover {
+  background: #ede9fe;
+  color: #5b21b6;
 }
 
 /* Compartir */

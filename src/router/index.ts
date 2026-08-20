@@ -5,6 +5,7 @@ import TableroView from '@/views/TableroView.vue'
 import LoginView from '@/views/LoginView.vue'
 import ViewDetailView from '@/views/ViewDetailView.vue'
 import CreateEditView from '@/views/CreateEditView.vue'
+import CategoryView from '@/views/CategoryView.vue'
 
 // Configuración principal de las rutas de la aplicación
 const router = createRouter({
@@ -44,7 +45,33 @@ const router = createRouter({
       name: 'view-detail',
       component: ViewDetailView,
     },
+    {
+      path: '/categories/:id',
+      name: 'category-detail',
+      component: CategoryView,
+    },
   ],
+
+  scrollBehavior(to, from, savedPosition) {
+    // Mantiene la posición al usar Atrás / Adelante
+    if (savedPosition) {
+      return savedPosition
+    }
+
+    // Si la URL contiene un #, se desplaza a ese elemento
+    if (to.hash) {
+      return {
+        el: to.hash,
+        behavior: 'smooth',
+        top: 90,
+      }
+    }
+
+    // En una navegación normal, inicia arriba
+    return {
+      top: 0,
+    }
+  },
 })
 
 // Controla el acceso a las rutas según el estado de autenticación

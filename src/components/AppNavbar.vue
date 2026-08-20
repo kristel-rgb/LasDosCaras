@@ -193,12 +193,12 @@ const handleLogout = async (): Promise<void> => {
           Inicio
         </RouterLink>
 
-        <button
-          class="nav-link nav-button"
-          type="button"
+        <<RouterLink
+          class="nav-link"
+          to="/#categories"
         >
           Categorías
-        </button>
+        </RouterLink>
       </nav>
 
       <!-- Buscador global -->
