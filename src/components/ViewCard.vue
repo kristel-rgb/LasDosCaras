@@ -18,9 +18,15 @@ import {
 
 import { useAuthStore } from '@/stores/auth'
 
-const props = defineProps<{
-  view: PoliticalView
-}>()
+const props = withDefaults(
+  defineProps<{
+    view: PoliticalView
+    highlightTerm?: string
+  }>(),
+  {
+    highlightTerm: '',
+  },
+)
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -54,6 +60,94 @@ const sideB = computed<ViewSide | undefined>(() =>
     (side) => side.type === 'COUNTERPART',
   ),
 )
+
+// Escapa HTML para mostrar texto proveniente del API de forma segura
+const escapeHtml = (text: string): string => {
+  const characters: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  }
+
+  return text.replace(
+    /[&<>"']/g,
+    (character) =>
+      characters[character] ?? character,
+  )
+}
+
+// Normaliza acentos para que "tecnologia"
+// también encuentre "tecnología"
+const normalizeSearchText = (
+  value: string,
+): string => {
+  return value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+}
+
+// Resalta el término cuando la tarjeta se usa
+// dentro de los resultados de búsqueda
+const highlightText = (
+  text: string,
+): string => {
+  const term = props.highlightTerm.trim()
+
+  if (!term) {
+    return escapeHtml(text)
+  }
+
+  const normalizedText =
+    normalizeSearchText(text)
+
+  const normalizedTerm =
+    normalizeSearchText(term)
+
+  let position = 0
+
+  let matchIndex =
+    normalizedText.indexOf(
+      normalizedTerm,
+      position,
+    )
+
+  if (matchIndex === -1) {
+    return escapeHtml(text)
+  }
+
+  let result = ''
+
+  while (matchIndex !== -1) {
+    result += escapeHtml(
+      text.slice(position, matchIndex),
+    )
+
+    result += `<mark>${escapeHtml(
+      text.slice(
+        matchIndex,
+        matchIndex + normalizedTerm.length,
+      ),
+    )}</mark>`
+
+    position =
+      matchIndex + normalizedTerm.length
+
+    matchIndex =
+      normalizedText.indexOf(
+        normalizedTerm,
+        position,
+      )
+  }
+
+  result += escapeHtml(
+    text.slice(position),
+  )
+
+  return result
+}
 
 // Formatea la fecha para mostrarla al usuario
 const formattedDate = computed(() => {
@@ -281,13 +375,14 @@ const shareView = async (): Promise<void> => {
           LADO A
         </div>
 
-        <h2>
-          {{ sideA.title }}
-        </h2>
+        <h2
+          v-html="highlightText(sideA.title)"
+        ></h2>
 
-        <p class="side-description">
-          {{ sideA.description }}
-        </p>
+        <p
+          class="side-description"
+          v-html="highlightText(sideA.description)"
+        ></p>
 
         <footer class="side-stats">
           <span>
@@ -315,13 +410,14 @@ const shareView = async (): Promise<void> => {
           LADO B
         </div>
 
-        <h2>
-          {{ sideB.title }}
-        </h2>
+        <h2
+          v-html="highlightText(sideB.title)"
+        ></h2>
 
-        <p class="side-description">
-          {{ sideB.description }}
-        </p>
+        <p
+          class="side-description"
+          v-html="highlightText(sideB.description)"
+        ></p>
 
         <footer class="side-stats">
           <span>
@@ -373,6 +469,18 @@ const shareView = async (): Promise<void> => {
 </template>
 
 <style scoped>
+:deep(mark) {
+  padding: 1px 2px;
+  border-radius: 3px;
+  background: #fef08a;
+  color: inherit;
+}
+
+:global(html[data-theme='dark'] .view-card mark) {
+  background: #854d0e;
+  color: #fef3c7;
+}
+
 .view-card {
   width: 100%;
   overflow: hidden;
