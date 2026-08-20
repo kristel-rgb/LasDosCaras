@@ -6,6 +6,7 @@ import LoginView from '@/views/LoginView.vue'
 import ViewDetailView from '@/views/ViewDetailView.vue'
 import CreateEditView from '@/views/CreateEditView.vue'
 import CategoryView from '@/views/CategoryView.vue'
+import SearchResultsView from '@/views/SearchResultsView.vue'
 
 // Configuración principal de las rutas de la aplicación
 const router = createRouter({
@@ -49,6 +50,11 @@ const router = createRouter({
       path: '/categories/:id',
       name: 'category-detail',
       component: CategoryView,
+    },
+    {
+      path: '/search',
+      name: 'search-results',
+      component: SearchResultsView,
     },
   ],
 

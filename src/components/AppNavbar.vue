@@ -154,6 +154,24 @@ onBeforeUnmount(() => {
   }
 })
 
+// Navega a la página completa de resultados
+const goToSearchResults = async (): Promise<void> => {
+  const term = props.searchQuery?.trim() ?? ''
+
+  if (!term) {
+    return
+  }
+
+  searchOpen.value = false
+
+  await router.push({
+    path: '/search',
+    query: {
+      q: term,
+    },
+  })
+}
+
 // Cierra la sesión y mantiene al usuario en el tablero público
 const handleLogout = async (): Promise<void> => {
   authStore.logout()
@@ -193,7 +211,7 @@ const handleLogout = async (): Promise<void> => {
           Inicio
         </RouterLink>
 
-        <<RouterLink
+        <RouterLink
           class="nav-link"
           to="/#categories"
         >
@@ -204,9 +222,14 @@ const handleLogout = async (): Promise<void> => {
       <!-- Buscador global -->
       <div class="search-wrapper">
         <div class="search-container">
-          <span class="search-icon">
+          <button
+            class="search-icon"
+            type="button"
+            aria-label="Buscar"
+            @click="goToSearchResults"
+          >
             ⌕
-          </span>
+          </button>
 
           <input
             :value="props.searchQuery"
@@ -220,6 +243,7 @@ const handleLogout = async (): Promise<void> => {
                 Boolean(props.searchQuery?.trim())
             "
             @keydown.esc="searchOpen = false"
+            @keydown.enter.prevent="goToSearchResults"
           />
         </div>
 
@@ -643,6 +667,11 @@ html[data-theme='dark'] body {
   color: #a1a1aa;
   font-size: 18px;
   transform: translateY(-50%);
+  border: none;
+  padding: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .search-container input {
