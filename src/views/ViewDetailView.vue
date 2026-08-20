@@ -1,5 +1,12 @@
 <script setup lang="ts">
 import AppNavbar from '@/components/AppNavbar.vue'
+import type { ViewThread } from '@/models/thread'
+
+import {
+  createThreadComment,
+  createViewThread,
+  getViewThreads,
+} from '@/services/threadsService'
 
 import {
   computed,
@@ -57,6 +64,21 @@ const reactionLoading = ref<Record<string, boolean>>({})
 const reactionMessage = ref('')
 const reactionError = ref('')
 
+// Formulario para crear un hilo
+const newThreadTitle = ref('')
+const newThreadContent = ref('')
+const creatingThread = ref(false)
+const threadMessage = ref('')
+
+// Hilos y comentarios
+const threads = ref<ViewThread[]>([])
+const threadsLoading = ref(false)
+const threadsError = ref('')
+
+// Respuestas a los hilos
+const commentContents = ref<Record<string, string>>({})
+const commentingThreadId = ref<string | null>(null)
+
 // Estados utilizados al despublicar
 const unpublishLoading = ref(false)
 const unpublishMessage = ref('')
@@ -113,6 +135,7 @@ const loadView = async (): Promise<void> => {
     )
 
     isFavorite.value = view.value.isFavorite
+    await loadThreads()
   } catch (error) {
     view.value = null
 
@@ -258,6 +281,164 @@ const handleReaction = async (
     }
   } finally {
     reactionLoading.value[side.id] = false
+  }
+}
+
+// Carga los hilos asociados a la publicación
+const loadThreads = async (): Promise<void> => {
+  if (!view.value) {
+    return
+  }
+
+  threadsLoading.value = true
+  threadsError.value = ''
+
+  try {
+    threads.value = await getViewThreads(
+      view.value.id,
+      authStore.token ?? undefined,
+    )
+  } catch (error) {
+    if (error instanceof Error) {
+      threadsError.value = error.message
+    } else {
+      threadsError.value =
+        'Ocurrió un error inesperado.'
+    }
+  } finally {
+    threadsLoading.value = false
+  }
+}
+
+// Crea un nuevo hilo dentro de la publicación
+const handleCreateThread = async (): Promise<void> => {
+  threadsError.value = ''
+  threadMessage.value = ''
+
+  if (
+    !authStore.isAuthenticated ||
+    !authStore.token
+  ) {
+    await router.push({
+      name: 'login',
+    })
+
+    return
+  }
+
+  if (!view.value) {
+    return
+  }
+
+  if (
+    !newThreadTitle.value.trim() ||
+    !newThreadContent.value.trim()
+  ) {
+    threadsError.value =
+      'Debes ingresar un título y un comentario.'
+
+    return
+  }
+
+  if (creatingThread.value) {
+    return
+  }
+
+  creatingThread.value = true
+
+  try {
+    await createViewThread(
+      view.value.id,
+      {
+        title: newThreadTitle.value.trim(),
+        content: newThreadContent.value.trim(),
+      },
+      authStore.token,
+    )
+
+    newThreadTitle.value = ''
+    newThreadContent.value = ''
+
+    threadMessage.value =
+      'Hilo creado correctamente.'
+
+    // Recarga la lista real de hilos
+    await loadThreads()
+  } catch (error) {
+    if (error instanceof Error) {
+      threadsError.value = error.message
+    } else {
+      threadsError.value =
+        'Ocurrió un error inesperado.'
+    }
+  } finally {
+    creatingThread.value = false
+  }
+}
+
+// Agrega un comentario a un hilo existente
+const handleCreateComment = async (
+  threadId: string,
+): Promise<void> => {
+  threadsError.value = ''
+  threadMessage.value = ''
+
+  if (
+    !authStore.isAuthenticated ||
+    !authStore.token
+  ) {
+    await router.push({
+      name: 'login',
+    })
+
+    return
+  }
+
+  if (!view.value) {
+    return
+  }
+
+  const content =
+    commentContents.value[threadId]?.trim()
+
+  if (!content) {
+    threadsError.value =
+      'Debes escribir un comentario.'
+
+    return
+  }
+
+  if (commentingThreadId.value) {
+    return
+  }
+
+  commentingThreadId.value = threadId
+
+  try {
+    await createThreadComment(
+      view.value.id,
+      threadId,
+      content,
+      authStore.token,
+    )
+
+    // Limpiamos únicamente el comentario de este hilo
+    commentContents.value[threadId] = ''
+
+    threadMessage.value =
+      'Comentario publicado correctamente.'
+
+    // Recargamos los hilos para mostrar el comentario nuevo
+    await loadThreads()
+  } catch (error) {
+    if (error instanceof Error) {
+      threadsError.value = error.message
+    } else {
+      threadsError.value =
+        'Ocurrió un error inesperado.'
+    }
+  } finally {
+    commentingThreadId.value = null
   }
 }
 
@@ -835,7 +1016,7 @@ onMounted(() => {
         <!-- Resumen -->
         <section class="detail-summary">
           <div>
-            <span>Opiniones</span>
+            <span>Reacciones</span>
 
             <strong>
               {{
@@ -865,6 +1046,201 @@ onMounted(() => {
             </strong>
           </div>
         </section>
+
+        <!-- Hilos y comentarios -->
+        <section class="threads-section">
+          <div class="threads-header">
+            <div>
+              <span class="threads-eyebrow">
+                CONVERSACIÓN
+              </span>
+
+              <h2>Hilos de discusión</h2>
+            </div>
+
+            <span class="threads-count">
+              {{ threads.length }}
+              {{ threads.length === 1 ? 'hilo' : 'hilos' }}
+            </span>
+          </div>
+
+          <!-- Cargando -->
+          <p
+            v-if="threadsLoading"
+            class="threads-state"
+          >
+            Cargando hilos...
+          </p>
+
+          <!-- Sin hilos -->
+          <div
+            v-else-if="threads.length === 0"
+            class="empty-threads"
+          >
+            <p>
+              Todavía no hay hilos en esta publicación.
+            </p>
+
+            <span>
+              Sé la primera persona en iniciar una conversación.
+            </span>
+          </div>
+
+          <!-- Lista de hilos -->
+          <div
+            v-else
+            class="threads-list"
+          >
+            <article
+              v-for="thread in threads"
+              :key="thread.id"
+              class="thread-card"
+            >
+              <h3>
+                {{ thread.title }}
+              </h3>
+
+              <p class="thread-date">
+                {{
+                  new Intl.DateTimeFormat(
+                    'es-CR',
+                    {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric',
+                    },
+                  ).format(
+                    new Date(thread.createdAt),
+                  )
+                }}
+              </p>
+
+              <!-- Comentarios del hilo -->
+              <div
+                v-for="comment in thread.comments"
+                :key="comment.id"
+                class="thread-comment"
+              >
+                <div class="comment-header">
+                  <div class="comment-avatar">
+                    {{
+                      comment.user.name
+                        .charAt(0)
+                        .toUpperCase()
+                    }}
+                  </div>
+
+                  <div>
+                    <strong>
+                      {{ comment.user.name }}
+                    </strong>
+
+                    <span>
+                      {{
+                        new Intl.DateTimeFormat(
+                          'es-CR',
+                          {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                          },
+                        ).format(
+                          new Date(comment.createdAt),
+                        )
+                      }}
+                    </span>
+                  </div>
+                </div>
+
+                <p>
+                  {{ comment.content }}
+                </p>
+              </div>
+
+              <!-- Responder al hilo -->
+              <form
+                class="reply-form"
+                @submit.prevent="handleCreateComment(thread.id)"
+              >
+                <textarea
+                  v-model="commentContents[thread.id]"
+                  rows="2"
+                  placeholder="Escribe una respuesta..."
+                ></textarea>
+
+                <button
+                  type="submit"
+                  class="reply-button"
+                  :disabled="commentingThreadId === thread.id"
+                >
+                  {{
+                    commentingThreadId === thread.id
+                      ? 'Publicando...'
+                      : 'Responder'
+                  }}
+                </button>
+              </form>
+            </article>
+          </div>
+
+          <!-- Crear hilo -->
+          <form
+            class="thread-form"
+            @submit.prevent="handleCreateThread"
+          >
+            <h3>Crear un hilo</h3>
+
+            <label for="thread-title">
+              Título
+            </label>
+
+            <input
+              id="thread-title"
+              v-model="newThreadTitle"
+              type="text"
+              placeholder="¿Sobre qué quieres conversar?"
+            />
+
+            <label for="thread-content">
+              Comentario
+            </label>
+
+            <textarea
+              id="thread-content"
+              v-model="newThreadContent"
+              rows="4"
+              placeholder="Escribe tu opinión..."
+            ></textarea>
+
+            <button
+              type="submit"
+              class="create-thread-button"
+              :disabled="creatingThread"
+            >
+              {{
+                creatingThread
+                  ? 'Creando...'
+                  : 'Crear hilo'
+              }}
+            </button>
+          </form>
+
+          <p
+            v-if="threadMessage"
+            class="action-message success"
+            role="status"
+          >
+            {{ threadMessage }}
+          </p>
+
+          <p
+            v-if="threadsError"
+            class="action-message error"
+            role="alert"
+          >
+            {{ threadsError }}
+          </p>
+        </section>
       </template>
     </section>
   </main>
@@ -890,7 +1266,9 @@ onMounted(() => {
   margin: 0 auto;
 }
 
-/* Navegación */
+/* =========================
+   NAVEGACIÓN
+   ========================= */
 
 .back-button {
   display: inline-flex;
@@ -915,20 +1293,9 @@ onMounted(() => {
   color: #6d28d9;
 }
 
-/* Aviso temporal */
-
-.demo-notice {
-  margin-bottom: 18px;
-  padding: 10px 14px;
-  border: 1px solid #ddd6fe;
-  border-radius: 10px;
-  background: #f5f3ff;
-  color: #6d28d9;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-/* Encabezado */
+/* =========================
+   ENCABEZADO
+   ========================= */
 
 .detail-header {
   padding: 30px;
@@ -1022,7 +1389,9 @@ onMounted(() => {
   font-size: 11px;
 }
 
-/* Acciones de la publicación */
+/* =========================
+   ACCIONES
+   ========================= */
 
 .publication-actions {
   display: flex;
@@ -1061,6 +1430,11 @@ onMounted(() => {
   color: #6d28d9;
 }
 
+.action-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .edit-button {
   border-color: #c4b5fd;
   color: #6d28d9;
@@ -1077,11 +1451,6 @@ onMounted(() => {
   color: #991b1b;
 }
 
-.action-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
 .action-message {
   margin: 12px 0 0;
   font-size: 11px;
@@ -1096,7 +1465,10 @@ onMounted(() => {
   color: #dc2626;
 }
 
-/* Hashtags */
+/* =========================
+   HASHTAGS
+   ========================= */
+
 .hashtags {
   display: flex;
   flex-wrap: wrap;
@@ -1110,7 +1482,9 @@ onMounted(() => {
   font-weight: 700;
 }
 
-/* Lados */
+/* =========================
+   LADOS
+   ========================= */
 
 .sides-grid {
   position: relative;
@@ -1202,7 +1576,9 @@ onMounted(() => {
   line-height: 1.8;
 }
 
-/* Fuentes */
+/* =========================
+   FUENTES
+   ========================= */
 
 .sources {
   margin-top: 25px;
@@ -1222,7 +1598,9 @@ onMounted(() => {
   align-items: center;
   gap: 7px;
   width: fit-content;
+  max-width: 100%;
   margin-bottom: 8px;
+  overflow-wrap: anywhere;
   color: #6d28d9;
   font-size: 12px;
   font-weight: 700;
@@ -1253,7 +1631,9 @@ onMounted(() => {
   border: 0;
 }
 
-/* Reacciones */
+/* =========================
+   REACCIONES
+   ========================= */
 
 .reactions {
   display: flex;
@@ -1277,7 +1657,7 @@ onMounted(() => {
   transition: 0.2s ease;
 }
 
-.reactions button:hover {
+.reactions button:hover:not(:disabled) {
   border-color: #c4b5fd;
   background: #faf9ff;
   color: #6d28d9;
@@ -1309,7 +1689,9 @@ onMounted(() => {
   color: #dc2626;
 }
 
-/* Resumen inferior */
+/* =========================
+   RESUMEN
+   ========================= */
 
 .detail-summary {
   display: flex;
@@ -1338,7 +1720,310 @@ onMounted(() => {
   font-size: 12px;
 }
 
-/* Responsive */
+/* =========================
+   HILOS Y COMENTARIOS
+   ========================= */
+
+.threads-section {
+  margin-top: 24px;
+  padding: 24px;
+  border: 1px solid #e4e4e7;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.threads-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.threads-eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  color: #7c3aed;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.threads-header h2 {
+  margin: 0;
+  color: #18181b;
+  font-size: 1.3rem;
+}
+
+.threads-count {
+  padding: 6px 10px;
+  border: 1px solid #e4e4e7;
+  border-radius: 999px;
+  color: #71717a;
+  font-size: 0.75rem;
+}
+
+.threads-state {
+  color: #71717a;
+}
+
+/* Estado vacío */
+
+.empty-threads {
+  margin-bottom: 24px;
+  padding: 20px;
+  border: 1px dashed #d4d4d8;
+  border-radius: 12px;
+  background: #fafafa;
+  text-align: center;
+}
+
+.empty-threads p {
+  margin: 0 0 6px;
+  color: #27272a;
+  font-weight: 700;
+}
+
+.empty-threads span {
+  color: #71717a;
+  font-size: 0.85rem;
+}
+
+/* Lista de hilos */
+
+.threads-list {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.thread-card {
+  padding: 18px;
+  border: 1px solid #e4e4e7;
+  border-radius: 12px;
+  background: #fafafa;
+}
+
+.thread-card h3 {
+  margin: 0 0 6px;
+  color: #27272a;
+}
+
+/* Fecha del hilo */
+
+.thread-date {
+  margin: 0 0 16px;
+  color: #a1a1aa;
+  font-size: 11px;
+}
+
+/* Encabezado del comentario */
+
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 8px;
+}
+
+.comment-avatar {
+  display: flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #7c3aed;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.comment-header strong {
+  display: block;
+  color: #6d28d9;
+  font-size: 12px;
+}
+
+.comment-header span {
+  display: block;
+  margin-top: 2px;
+  color: #a1a1aa;
+  font-size: 10px;
+}
+
+/* Comentarios */
+
+.thread-comment {
+  padding-top: 12px;
+  border-top: 1px solid #e4e4e7;
+}
+
+.thread-comment + .thread-comment {
+  margin-top: 12px;
+}
+
+.thread-comment p {
+  margin: 6px 0 0;
+  color: #52525b;
+  line-height: 1.6;
+}
+
+/* Responder a un hilo */
+
+.reply-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #e4e4e7;
+}
+
+.reply-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid #d4d4d8;
+  border-radius: 9px;
+  outline: none;
+  background: #ffffff;
+  color: #18181b;
+  font: inherit;
+  resize: vertical;
+}
+
+.reply-form textarea:focus {
+  border-color: #8b5cf6;
+}
+
+.reply-form textarea::placeholder {
+  color: #a1a1aa;
+}
+
+.reply-button {
+  flex-shrink: 0;
+  padding: 10px 15px;
+  border: 0;
+  border-radius: 8px;
+  background: #7c3aed;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.reply-button:hover:not(:disabled) {
+  background: #6d28d9;
+}
+
+.reply-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Formulario para crear un hilo */
+
+.thread-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 22px;
+  border-top: 1px solid #e4e4e7;
+}
+
+.thread-form h3 {
+  margin: 0 0 8px;
+  color: #27272a;
+}
+
+.thread-form label {
+  color: #52525b;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.thread-form input,
+.thread-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #d4d4d8;
+  border-radius: 9px;
+  outline: none;
+  background: #ffffff;
+  color: #18181b;
+  font: inherit;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.thread-form textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.thread-form input:focus,
+.thread-form textarea:focus {
+  border-color: #8b5cf6;
+  box-shadow:
+    0 0 0 3px rgba(124, 58, 237, 0.08);
+}
+
+.thread-form input::placeholder,
+.thread-form textarea::placeholder {
+  color: #a1a1aa;
+}
+
+.create-thread-button {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 8px;
+  background: #7c3aed;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.create-thread-button:hover:not(:disabled) {
+  background: #6d28d9;
+}
+
+.create-thread-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* =========================
+   RESPONSIVE
+   ========================= */
+
+   /* Responsive de hilos */
+
+@media (max-width: 600px) {
+  .threads-section {
+    padding: 18px;
+  }
+
+  .threads-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .create-thread-button {
+    width: 100%;
+  }
+}
+
 
 @media (max-width: 760px) {
   .detail-page {
@@ -1364,6 +2049,21 @@ onMounted(() => {
   }
 }
 
+@media (max-width: 600px) {
+  .threads-section {
+    padding: 18px;
+  }
+
+  .threads-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .create-thread-button {
+    width: 100%;
+  }
+}
+
 @media (max-width: 480px) {
   .detail-header {
     padding: 20px;
@@ -1382,7 +2082,9 @@ onMounted(() => {
   }
 }
 
-/* Tema oscuro */
+/* =========================
+   TEMA OSCURO
+   ========================= */
 
 :global(html[data-theme='dark'] .detail-page) {
   background: #0f1020;
@@ -1397,12 +2099,6 @@ onMounted(() => {
 :global(html[data-theme='dark'] .back-button:hover) {
   border-color: #8b5cf6;
   background: #29243f;
-  color: #c4b5fd;
-}
-
-:global(html[data-theme='dark'] .demo-notice) {
-  border-color: #4c3c78;
-  background: #211d37;
   color: #c4b5fd;
 }
 
@@ -1443,6 +2139,63 @@ onMounted(() => {
 
 :global(html[data-theme='dark'] .publication-date) {
   color: #71717a;
+}
+
+:global(html[data-theme='dark'] .publication-actions) {
+  border-top-color: #343447;
+}
+
+:global(html[data-theme='dark'] .action-button) {
+  border-color: #343447;
+  background: #1b1b2d;
+  color: #d4d4d8;
+}
+
+:global(
+  html[data-theme='dark']
+    .action-button:hover:not(:disabled)
+) {
+  border-color: #8b5cf6;
+  background: #29243f;
+  color: #c4b5fd;
+}
+
+:global(html[data-theme='dark'] .action-button.active) {
+  border-color: #8b5cf6;
+  background: #302b4d;
+  color: #c4b5fd;
+}
+
+:global(html[data-theme='dark'] .edit-button) {
+  border-color: #8b5cf6;
+  color: #c4b5fd;
+}
+
+:global(html[data-theme='dark'] .danger-button) {
+  border-color: #7f1d1d;
+  color: #fca5a5;
+}
+
+:global(
+  html[data-theme='dark']
+    .danger-button:hover:not(:disabled)
+) {
+  background: #3f1d24;
+  color: #fecaca;
+}
+
+:global(
+  html[data-theme='dark']
+    .action-message.success
+) {
+  color: #86efac;
+}
+
+:global(
+  html[data-theme='dark']
+    .action-message.error
+) {
+  color: #fca5a5;
 }
 
 :global(html[data-theme='dark'] .hashtags span) {
@@ -1497,7 +2250,10 @@ onMounted(() => {
   color: #d4d4d8;
 }
 
-:global(html[data-theme='dark'] .reactions button:hover) {
+:global(
+  html[data-theme='dark']
+    .reactions button:hover:not(:disabled)
+) {
   border-color: #8b5cf6;
   background: #29243f;
   color: #c4b5fd;
@@ -1507,6 +2263,20 @@ onMounted(() => {
   border-color: #8b5cf6;
   background: #302b4d;
   color: #c4b5fd;
+}
+
+:global(
+  html[data-theme='dark']
+    .reaction-message.success
+) {
+  color: #86efac;
+}
+
+:global(
+  html[data-theme='dark']
+    .reaction-message.error
+) {
+  color: #fca5a5;
 }
 
 :global(html[data-theme='dark'] .detail-summary) {
@@ -1522,75 +2292,124 @@ onMounted(() => {
   color: #d4d4d8;
 }
 
-:global(
-  html[data-theme='dark']
-    .publication-actions
-) {
-  border-top-color: #343447;
+/* Hilos - oscuro */
+
+:global(html[data-theme='dark'] .threads-section) {
+  border-color: #2d2d42;
+  background: #171726;
 }
 
-:global(
-  html[data-theme='dark']
-    .action-button
-) {
-  border-color: #343447;
-  background: #1b1b2d;
-  color: #d4d4d8;
+:global(html[data-theme='dark'] .threads-eyebrow) {
+  color: #a78bfa;
 }
 
-:global(
-  html[data-theme='dark']
-    .action-button:hover:not(:disabled)
-) {
-  border-color: #8b5cf6;
-  background: #29243f;
+:global(html[data-theme='dark'] .threads-header h2) {
+  color: #ffffff;
+}
+
+:global(html[data-theme='dark'] .threads-count) {
+  border-color: #34344b;
+  color: #c4c4d4;
+}
+
+:global(html[data-theme='dark'] .threads-state) {
+  color: #a9a9bd;
+}
+
+:global(html[data-theme='dark'] .empty-threads) {
+  border-color: #34344b;
+  background: transparent;
+}
+
+:global(html[data-theme='dark'] .empty-threads p) {
+  color: #ffffff;
+}
+
+:global(html[data-theme='dark'] .empty-threads span) {
+  color: #9292a7;
+}
+
+:global(html[data-theme='dark'] .thread-card) {
+  border-color: #34344b;
+  background: #1c1b2e;
+}
+
+:global(html[data-theme='dark'] .thread-card h3) {
+  color: #ffffff;
+}
+
+:global(html[data-theme='dark'] .thread-author) {
+  color: #9292a7;
+}
+
+:global(html[data-theme='dark'] .thread-comment) {
+  border-top-color: #34344b;
+}
+
+:global(html[data-theme='dark'] .thread-comment strong) {
   color: #c4b5fd;
 }
 
-:global(
-  html[data-theme='dark']
-    .action-button.active
-) {
+:global(html[data-theme='dark'] .thread-comment p) {
+  color: #c4c4d4;
+}
+
+:global(html[data-theme='dark'] .thread-form) {
+  border-top-color: #34344b;
+}
+
+:global(html[data-theme='dark'] .thread-form h3) {
+  color: #ffffff;
+}
+
+:global(html[data-theme='dark'] .thread-form label) {
+  color: #c4c4d4;
+}
+
+:global(html[data-theme='dark'] .thread-form input),
+:global(html[data-theme='dark'] .thread-form textarea) {
+  border-color: #34344b;
+  background: #11111d;
+  color: #ffffff;
+}
+
+:global(html[data-theme='dark'] .thread-form input:focus),
+:global(html[data-theme='dark'] .thread-form textarea:focus) {
   border-color: #8b5cf6;
-  background: #302b4d;
-  color: #c4b5fd;
+  box-shadow:
+    0 0 0 3px rgba(139, 92, 246, 0.15);
 }
 
 :global(
   html[data-theme='dark']
-    .action-message.success
-) {
-  color: #86efac;
-}
-
+    .thread-form input::placeholder
+),
 :global(
   html[data-theme='dark']
-    .action-message.error
+    .thread-form textarea::placeholder
 ) {
-  color: #fca5a5;
+  color: #707084;
 }
 
-:global(
-  html[data-theme='dark']
-    .edit-button
-) {
+:global(html[data-theme='dark'] .reply-form) {
+  border-top-color: #34344b;
+}
+
+:global(html[data-theme='dark'] .reply-form textarea) {
+  border-color: #34344b;
+  background: #11111d;
+  color: #ffffff;
+}
+
+:global(html[data-theme='dark'] .reply-form textarea:focus) {
   border-color: #8b5cf6;
-  color: #c4b5fd;
 }
 
 :global(
   html[data-theme='dark']
-    .danger-button
+    .reply-form textarea::placeholder
 ) {
-  border-color: #7f1d1d;
-  color: #fca5a5;
+  color: #707084;
 }
 
-:global(
-  html[data-theme='dark']
-    .danger-button:hover:not(:disabled)
-) {
-  background: #3f1d24;
-  color: #fecaca;
-}
 </style>
