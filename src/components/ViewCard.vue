@@ -345,6 +345,15 @@ const shareView = async (): Promise<void> => {
         </strong>
       </div>
 
+      <button
+        type="button"
+        class="detail-button"
+        @click="router.push(`/views/${view.id}`)"
+      >
+        Ver publicación
+        <span aria-hidden="true">→</span>
+      </button>
+
       <div
         v-if="isFavorite"
         class="favorite-indicator"
@@ -652,6 +661,25 @@ const shareView = async (): Promise<void> => {
   font-size: 12px;
 }
 
+/* Botón para abrir el detalle de la publicación */
+.detail-button {
+  margin-left: auto;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: #6d28d9;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.detail-button:hover {
+  background: #5b21b6;
+}
+
 .favorite-indicator {
   margin-left: auto;
   color: #7c3aed;
@@ -832,6 +860,15 @@ const shareView = async (): Promise<void> => {
 
 :global(html[data-theme='dark'] .card-stat strong) {
   color: #d4d4d8;
+}
+
+:global(html[data-theme='dark'] .detail-button) {
+  background: #7c3aed;
+  color: #ffffff;
+}
+
+:global(html[data-theme='dark'] .detail-button:hover) {
+  background: #8b5cf6;
 }
 
 :global(html[data-theme='dark'] .favorite-indicator) {

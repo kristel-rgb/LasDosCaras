@@ -75,3 +75,10 @@ export interface ViewsResponse {
   limit: number
   views: PoliticalView[]
 }
+
+// Respuesta del API al reaccionar a uno de los lados
+export interface ViewReactionResponse {
+  likeCount: number
+  dislikeCount: number
+  myReaction: ReactionType | null
+}
