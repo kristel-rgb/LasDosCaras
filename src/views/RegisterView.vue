@@ -1160,4 +1160,164 @@ const handleActivation = async (): Promise<void> => {
     grid-template-columns: 1fr;
   }
 }
+
+/* =========================
+   TEMA OSCURO
+   ========================= */
+
+:global(html[data-theme='dark'] .register-container) {
+  border-color: #343447;
+  background: #171728;
+}
+
+:global(html[data-theme='dark'] .form-section) {
+  background: #171728;
+}
+
+:global(html[data-theme='dark'] .mobile-logo) {
+  color: #c4b5fd;
+}
+
+:global(html[data-theme='dark'] .welcome-label) {
+  color: #a78bfa;
+}
+
+:global(html[data-theme='dark'] .register-header h2),
+:global(html[data-theme='dark'] .status-content h2) {
+  color: #f4f4f5;
+}
+
+:global(html[data-theme='dark'] .register-header p),
+:global(html[data-theme='dark'] .status-content > p) {
+  color: #a1a1aa;
+}
+
+:global(html[data-theme='dark'] .form-group label) {
+  color: #d4d4d8;
+}
+
+:global(html[data-theme='dark'] .input-container input) {
+  border-color: #343447;
+  background: #11111d;
+  color: #f4f4f5;
+}
+
+:global(
+  html[data-theme='dark']
+    .input-container input::placeholder
+) {
+  color: #71717a;
+}
+
+:global(html[data-theme='dark'] .input-container input:focus) {
+  border-color: #8b5cf6;
+  background: #11111d;
+  box-shadow:
+    0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+:global(html[data-theme='dark'] .input-icon) {
+  color: #71717a;
+}
+
+:global(html[data-theme='dark'] .toggle-password) {
+  color: #c4b5fd;
+}
+
+:global(html[data-theme='dark'] .toggle-password:hover) {
+  color: #a78bfa;
+}
+
+:global(html[data-theme='dark'] .strength-track) {
+  background: #343447;
+}
+
+:global(html[data-theme='dark'] .password-strength span) {
+  color: #a1a1aa;
+}
+
+:global(html[data-theme='dark'] .password-requirements) {
+  color: #a1a1aa;
+}
+
+:global(
+  html[data-theme='dark']
+    .password-requirements span.valid
+) {
+  color: #86efac;
+}
+
+:global(html[data-theme='dark'] .field-error) {
+  color: #fca5a5;
+}
+
+:global(html[data-theme='dark'] .error-message) {
+  border-color: #7f1d1d;
+  background: #3f1d24;
+  color: #fecaca;
+}
+
+:global(html[data-theme='dark'] .error-message span) {
+  background: #b91c1c;
+  color: #ffffff;
+}
+
+:global(html[data-theme='dark'] .login-section > span) {
+  background: #343447;
+}
+
+:global(html[data-theme='dark'] .login-section p) {
+  color: #a1a1aa;
+}
+
+:global(html[data-theme='dark'] .login-text) {
+  color: #c4b5fd;
+}
+
+:global(html[data-theme='dark'] .success-message) {
+  border-color: #166534;
+  background: #123524;
+  color: #bbf7d0;
+}
+
+/* =========================
+   AUTOFILL EN TEMA OSCURO
+   ========================= */
+
+:global(
+  html[data-theme='dark']
+    .input-container input:-webkit-autofill
+),
+:global(
+  html[data-theme='dark']
+    .input-container input:-webkit-autofill:hover
+),
+:global(
+  html[data-theme='dark']
+    .input-container input:-webkit-autofill:focus
+) {
+  -webkit-text-fill-color: #f4f4f5;
+  -webkit-box-shadow:
+    0 0 0 1000px #11111d inset;
+  box-shadow:
+    0 0 0 1000px #11111d inset;
+  caret-color: #f4f4f5;
+  border-color: #343447;
+  transition:
+    background-color 9999s ease-out 0s;
+}
+
+/* =========================
+   MÓVIL EN TEMA OSCURO
+   ========================= */
+
+@media (max-width: 480px) {
+  :global(html[data-theme='dark'] .register-page) {
+    background: #0f1020;
+  }
+
+  :global(html[data-theme='dark'] .register-container) {
+    background: #171728;
+  }
+}
 </style>

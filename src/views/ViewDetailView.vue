@@ -696,11 +696,22 @@ onMounted(() => {
 
             <div>
               <p class="author">
-                Publicado por
-                <strong>
-                  {{ view.author.name }}
-                </strong>
-              </p>
+                  Publicado por
+            <button
+              type="button"
+              class="author-profile-link"
+              @click="
+                router.push({
+                  name: 'author-profile',
+                  params: {
+                    id: view.author.id,
+                  },
+                })
+              "
+            >
+              {{ view.author.name }}
+            </button>
+          </p>
 
               <p class="publication-date">
                 {{
@@ -1381,6 +1392,22 @@ onMounted(() => {
 
 .author strong {
   color: #27272a;
+}
+
+.author-profile-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #27272a;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.author-profile-link:hover {
+  color: #6d28d9;
+  text-decoration: underline;
 }
 
 .publication-date {
@@ -2135,6 +2162,20 @@ onMounted(() => {
 
 :global(html[data-theme='dark'] .author strong) {
   color: #e4e4e7;
+}
+
+:global(
+  html[data-theme='dark']
+    .author-profile-link
+) {
+  color: #e4e4e7;
+}
+
+:global(
+  html[data-theme='dark']
+    .author-profile-link:hover
+) {
+  color: #c4b5fd;
 }
 
 :global(html[data-theme='dark'] .publication-date) {

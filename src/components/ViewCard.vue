@@ -265,9 +265,20 @@ const shareView = async (): Promise<void> => {
         </div>
 
         <div>
-          <p class="author-name">
+          <button
+            type="button"
+            class="author-name author-link"
+            @click.stop="
+              router.push({
+                name: 'author-profile',
+                params: {
+                  id: view.author.id,
+                },
+              })
+            "
+          >
             {{ view.author.name }}
-          </p>
+          </button>
 
           <p class="publication-date">
             {{ formattedDate }}
@@ -538,6 +549,21 @@ const shareView = async (): Promise<void> => {
   color: #18181b;
   font-size: 14px;
   font-weight: 700;
+}
+
+.author-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.author-link:hover {
+  color: #6d28d9;
+  text-decoration: underline;
 }
 
 .publication-date {
@@ -997,6 +1023,10 @@ const shareView = async (): Promise<void> => {
 }
 
 :global(html[data-theme='dark'] .favorite-indicator) {
+  color: #c4b5fd;
+}
+
+:global(html[data-theme='dark'] .author-link:hover) {
   color: #c4b5fd;
 }
 
