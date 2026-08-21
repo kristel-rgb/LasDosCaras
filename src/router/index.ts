@@ -7,6 +7,7 @@ import ViewDetailView from '@/views/ViewDetailView.vue'
 import CreateEditView from '@/views/CreateEditView.vue'
 import CategoryView from '@/views/CategoryView.vue'
 import SearchResultsView from '@/views/SearchResultsView.vue'
+import AuthorProfileView from '@/views/AuthorProfileView.vue'
 
 // Configuración principal de las rutas de la aplicación
 const router = createRouter({
@@ -55,6 +56,11 @@ const router = createRouter({
       path: '/search',
       name: 'search-results',
       component: SearchResultsView,
+    },
+    {
+      path: '/authors/:id',
+      name: 'author-profile',
+      component: AuthorProfileView,
     },
   ],
 
