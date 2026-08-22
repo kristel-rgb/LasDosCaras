@@ -8,6 +8,7 @@ import CreateEditView from '@/views/CreateEditView.vue'
 import CategoryView from '@/views/CategoryView.vue'
 import SearchResultsView from '@/views/SearchResultsView.vue'
 import AuthorProfileView from '@/views/AuthorProfileView.vue'
+import AdminUsersView from '@/views/AdminUsersView.vue'
 
 // Configuración principal de las rutas de la aplicación
 const router = createRouter({
@@ -61,6 +62,15 @@ const router = createRouter({
       path: '/authors/:id',
       name: 'author-profile',
       component: AuthorProfileView,
+    },
+    {
+      path: '/admin/users',
+      name: 'admin-users',
+      component: AdminUsersView,
+      meta: {
+        requiresAuth: true,
+        requiresSuperadmin: true,
+      },
     },
   ],
 
