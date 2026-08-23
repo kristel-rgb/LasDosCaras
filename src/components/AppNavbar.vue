@@ -488,6 +488,36 @@ const handleLogout = async (): Promise<void> => {
 
               <div class="dropdown-divider"></div>
 
+              <template
+                v-if="
+                  authStore.user?.role === 'SUPERADMIN'
+                "
+              >
+                <div class="dropdown-admin">
+                  <span class="dropdown-section-label">
+                    Administración
+                  </span>
+
+                  <RouterLink
+                    class="dropdown-admin-link"
+                    :to="{ name: 'admin-users' }"
+                    @click="userMenuOpen = false"
+                  >
+                    Usuarios
+                  </RouterLink>
+
+                  <RouterLink
+                    class="dropdown-admin-link"
+                    :to="{ name: 'admin-categories' }"
+                    @click="userMenuOpen = false"
+                  >
+                    Categorías
+                  </RouterLink>
+                </div>
+
+                <div class="dropdown-divider"></div>
+              </template>
+
               <button
                 type="button"
                 @click="handleLogout"
@@ -982,6 +1012,38 @@ html[data-theme='dark'] body {
   background: #f0f0f0;
 }
 
+.dropdown-admin {
+  padding: 10px;
+}
+
+.dropdown-section-label {
+  display: block;
+  padding: 4px 7px 7px;
+  color: #a1a1aa;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dropdown-admin-link {
+  display: block;
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: #52525b;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.dropdown-admin-link:hover {
+  background: #f5f3ff;
+  color: #6d28d9;
+}
+
 .dropdown > button {
   width: 100%;
   padding: 12px 15px;
@@ -1216,6 +1278,28 @@ html[data-theme='dark'] body {
 
 :global(html[data-theme='dark'] .dropdown > button:hover) {
   background: #3b2028;
+}
+
+:global(
+  html[data-theme='dark']
+  .dropdown-section-label
+) {
+  color: #71717a;
+}
+
+:global(
+  html[data-theme='dark']
+  .dropdown-admin-link
+) {
+  color: #d4d4d8;
+}
+
+:global(
+  html[data-theme='dark']
+  .dropdown-admin-link:hover
+) {
+  background: #29243f;
+  color: #c4b5fd;
 }
 
 :global(html[data-theme='dark'] .login-link) {

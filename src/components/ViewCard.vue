@@ -761,6 +761,7 @@ const shareView = async (): Promise<void> => {
   line-height: 1.7;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
 }
 
 .side-stats {

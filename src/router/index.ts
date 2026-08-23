@@ -10,6 +10,8 @@ import SearchResultsView from '@/views/SearchResultsView.vue'
 import AuthorProfileView from '@/views/AuthorProfileView.vue'
 import ForbiddenView from '@/views/ForbiddenView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
+import AdminUsersView from '@/views/AdminUsersView.vue'
+import AdminCategoriesView from '@/views/AdminCategoriesView.vue'
 
 // Configuración principal de las rutas de la aplicación
 const router = createRouter({
@@ -64,11 +66,35 @@ const router = createRouter({
       name: 'author-profile',
       component: AuthorProfileView,
     },
+
+    // Rutas exclusivas para superadmin
+    {
+      path: '/admin/users',
+      name: 'admin-users',
+      component: AdminUsersView,
+      meta: {
+        requiresAuth: true,
+        requiresSuperadmin: true,
+      },
+    },
+    {
+      path: '/admin/categories',
+      name: 'admin-categories',
+      component: AdminCategoriesView,
+      meta: {
+        requiresAuth: true,
+        requiresSuperadmin: true,
+      },
+    },
+
+    // Acceso denegado
     {
       path: '/403',
       name: 'forbidden',
       component: ForbiddenView,
     },
+
+    // Siempre debe ir de última
     {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
