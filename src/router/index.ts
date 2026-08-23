@@ -12,6 +12,7 @@ import ForbiddenView from '@/views/ForbiddenView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
 import AdminUsersView from '@/views/AdminUsersView.vue'
 import AdminCategoriesView from '@/views/AdminCategoriesView.vue'
+import AdminModerationView from '@/views/AdminModerationView.vue'
 
 // Configuración principal de las rutas de la aplicación
 const router = createRouter({
@@ -86,7 +87,15 @@ const router = createRouter({
         requiresSuperadmin: true,
       },
     },
-
+    {
+      path: '/admin/moderation',
+      name: 'admin-moderation',
+      component: AdminModerationView,
+      meta: {
+        requiresAuth: true,
+        requiresSuperadmin: true,
+      },
+    },
     // Acceso denegado
     {
       path: '/403',
