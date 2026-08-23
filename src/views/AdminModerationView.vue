@@ -12,15 +12,15 @@ import {
 
 import { unpublishViewById } from '@/services/viewsService'
 import { useAuthStore } from '@/stores/auth'
+import { useToastStore } from '@/stores/toast'
 
 const authStore = useAuthStore()
 const router = useRouter()
+const toastStore = useToastStore()
 
 const views = ref<PoliticalView[]>([])
 const loading = ref(false)
 const errorMessage = ref('')
-const actionMessage = ref('')
-const actionError = ref('')
 
 const selectedStatus = ref<
   'ALL' | 'PUBLISHED' | 'UNPUBLISHED'
@@ -98,8 +98,6 @@ const changeStatus = async (
 
   selectedStatus.value = status
   currentPage.value = 1
-  actionMessage.value = ''
-  actionError.value = ''
 
   await loadViews()
 }
@@ -116,8 +114,6 @@ const changePage = async (
   }
 
   currentPage.value = page
-  actionMessage.value = ''
-  actionError.value = ''
 
   await loadViews()
 }
@@ -144,9 +140,6 @@ const unpublishView = async (
     return
   }
 
-  actionMessage.value = ''
-  actionError.value = ''
-
   const title =
     view.sides?.[0]?.title ??
     'esta publicación'
@@ -167,17 +160,19 @@ const unpublishView = async (
       authStore.token,
     )
 
-    actionMessage.value =
+    toastStore.success(
       'Publicación despublicada correctamente.'
+    )
 
     // Recargamos desde el backend para reflejar el estado real
     await loadViews()
   } catch (error) {
     if (error instanceof Error) {
-      actionError.value = error.message
+      toastStore.error(error.message)
     } else {
-      actionError.value =
-        'Ocurrió un error inesperado.'
+      toastStore.error(
+        'Ocurrió un error inesperado.',
+      )
     }
   } finally {
     actionViewId.value = null
@@ -195,9 +190,6 @@ const publishView = async (
   ) {
     return
   }
-
-  actionMessage.value = ''
-  actionError.value = ''
 
   const title =
     view.sides?.[0]?.title ??
@@ -219,16 +211,18 @@ const publishView = async (
       authStore.token,
     )
 
-    actionMessage.value =
+    toastStore.success(
       'Publicación republicada correctamente.'
+    )
 
     await loadViews()
   } catch (error) {
     if (error instanceof Error) {
-      actionError.value = error.message
+      toastStore.error(error.message)
     } else {
-      actionError.value =
-        'Ocurrió un error inesperado.'
+      toastStore.error(
+        'Ocurrió un error inesperado.',
+      )
     }
   } finally {
     actionViewId.value = null
@@ -367,20 +361,6 @@ onMounted(loadViews)
             Despublicadas
           </button>
         </div>
-
-        <p
-          v-if="actionMessage"
-          class="message success-message"
-        >
-          {{ actionMessage }}
-        </p>
-
-        <p
-          v-if="actionError"
-          class="message error-message"
-        >
-          {{ actionError }}
-        </p>
 
         <div
           v-if="loading"
@@ -877,23 +857,6 @@ td {
 .pagination button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
-}
-
-.message {
-  margin: 0 0 18px;
-  padding: 11px 13px;
-  border-radius: 8px;
-  font-size: 13px;
-}
-
-.success-message {
-  background: #f0fdf4;
-  color: #166534;
-}
-
-.error-message {
-  background: #fef2f2;
-  color: #991b1b;
 }
 
 .state-container {

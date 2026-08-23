@@ -9,14 +9,13 @@ import {
   unbanAdminUser,
 } from '@/services/adminUsersService'
 import { useAuthStore } from '@/stores/auth'
+import { useToastStore } from '@/stores/toast'
 
 const authStore = useAuthStore()
-
+const toastStore = useToastStore()
 const users = ref<AdminUser[]>([])
 const loading = ref(false)
 const errorMessage = ref('')
-const actionMessage = ref('')
-const actionError = ref('')
 
 const search = ref('')
 const currentPage = ref(1)
@@ -68,15 +67,11 @@ const loadUsers = async (): Promise<void> => {
 }
 
 const submitSearch = async (): Promise<void> => {
-  actionMessage.value = ''
-  actionError.value = ''
   currentPage.value = 1
   await loadUsers()
 }
 
 const clearSearch = async (): Promise<void> => {
-  actionMessage.value = ''
-  actionError.value = ''
   search.value = ''
   currentPage.value = 1
   await loadUsers()
@@ -93,8 +88,6 @@ const changePage = async (
     return
   }
 
-  actionMessage.value = ''
-  actionError.value = ''
   currentPage.value = page
   await loadUsers()
 }
@@ -105,9 +98,6 @@ const toggleUserStatus = async (
   if (!authStore.token || actionUserId.value) {
     return
   }
-
-  actionMessage.value = ''
-  actionError.value = ''
 
   const isSuspended =
     user.status === 'SUSPENDED'
@@ -142,15 +132,18 @@ const toggleUserStatus = async (
           : currentUser,
     )
 
-    actionMessage.value = isSuspended
+    toastStore.success(
+      isSuspended
       ? 'Usuario reactivado correctamente.'
-      : 'Usuario suspendido correctamente.'
+      : 'Usuario suspendido correctamente.',
+    )
   } catch (error) {
     if (error instanceof Error) {
-      actionError.value = error.message
+      toastStore.error(error.message)
     } else {
-      actionError.value =
-        'Ocurrió un error inesperado.'
+      toastStore.error(
+        'Ocurrió un error inesperado.',
+      )
     }
   } finally {
     actionUserId.value = null
@@ -221,20 +214,6 @@ onMounted(loadUsers)
             Limpiar
           </button>
         </form>
-
-        <p
-          v-if="actionMessage"
-          class="message success-message"
-        >
-          {{ actionMessage }}
-        </p>
-
-        <p
-          v-if="actionError"
-          class="message error-message"
-        >
-          {{ actionError }}
-        </p>
 
         <div
           v-if="loading"
@@ -636,23 +615,6 @@ td {
 .pagination button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
-}
-
-.message {
-  margin: 0 0 18px;
-  padding: 11px 13px;
-  border-radius: 8px;
-  font-size: 13px;
-}
-
-.success-message {
-  background: #f0fdf4;
-  color: #166534;
-}
-
-.error-message {
-  background: #fef2f2;
-  color: #991b1b;
 }
 
 .state-container {

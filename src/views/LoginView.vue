@@ -5,10 +5,11 @@ import { ref } from 'vue'
 
 import { login } from '@/services/authService'
 import { useAuthStore } from '@/stores/auth'
+import { useToastStore } from '@/stores/toast'
 
 // Store encargado de manejar la sesión del usuario
 const authStore = useAuthStore()
-
+const toastStore = useToastStore()
 // Router utilizado para navegar después de iniciar sesión
 const router = useRouter()
 
@@ -58,6 +59,10 @@ const handleLogin = async () => {
 
     // Redirigimos al usuario después de iniciar sesión correctamente
     router.push('/')
+
+    toastStore.success(
+      'Sesión iniciada correctamente.',
+    )
   } catch (error) {
     // Mostramos el mensaje generado por el servicio
     if (error instanceof Error) {

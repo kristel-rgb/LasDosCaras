@@ -9,10 +9,12 @@ import type { ViewFormPayload } from '@/models/viewForm'
 import { getCategories } from '@/services/categoriesService'
 import { createView, getViewForEditing, updateView, ViewEditorError } from '@/services/viewEditorService'
 import { useAuthStore } from '@/stores/auth'
+import { useToastStore } from '@/stores/toast'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const toastStore = useToastStore()
 
 const submitting = ref(false)
 const formError = ref('')
@@ -303,16 +305,21 @@ const submitForm = async (): Promise<void> => {
         payload,
         authStore.token,
       )
+
+      toastStore.success(
+        'Publicación actualizada correctamente.',
+      )
     } else {
       await createView(
         payload,
         authStore.token,
       )
+
+      toastStore.success(
+        'Publicación creada correctamente.',
+      )
     }
 
-    // Por ahora volvemos al tablero.
-    // Cuando Detalle se integre a main,
-    // podemos redirigir a /views/:id.
     await router.push('/')
   } catch (error) {
     if (

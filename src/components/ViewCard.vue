@@ -17,6 +17,7 @@ import {
 } from '@/services/favoritesService'
 
 import { useAuthStore } from '@/stores/auth'
+import { useToastStore } from '@/stores/toast'
 
 const props = withDefaults(
   defineProps<{
@@ -34,14 +35,11 @@ const emit = defineEmits<{
 
 const router = useRouter()
 const authStore = useAuthStore()
+const toastStore = useToastStore()
 
 // Estado local del favorito
 const isFavorite = ref(props.view.isFavorite)
 const favoriteLoading = ref(false)
-const favoriteError = ref('')
-
-// Estado para compartir la publicación
-const shareMessage = ref('')
 
 // Mantiene sincronizado el estado si cambia la publicación
 watch(
@@ -178,35 +176,43 @@ const toggleFavorite = async (): Promise<void> => {
   }
 
   favoriteLoading.value = true
-  favoriteError.value = ''
 
-try {
-  if (isFavorite.value) {
-    isFavorite.value = await removeFavorite(
-      props.view.id,
-      authStore.token,
-    )
+  try {
+    if (isFavorite.value) {
+      isFavorite.value = await removeFavorite(
+        props.view.id,
+        authStore.token,
+      )
 
-    emit(
-      'remove-favorite',
-      props.view.id,
-    )
-  } else {
-    isFavorite.value = await addFavorite(
-      props.view.id,
-      authStore.token,
-    )
+      emit(
+        'remove-favorite',
+        props.view.id,
+      )
+
+      toastStore.success(
+        'Publicación eliminada de favoritos.',
+      )
+    } else {
+      isFavorite.value = await addFavorite(
+        props.view.id,
+        authStore.token,
+      )
+
+      toastStore.success(
+        'Publicación guardada en favoritos.',
+      )
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      toastStore.error(error.message)
+    } else {
+      toastStore.error(
+        'Ocurrió un error inesperado.',
+      )
+    }
+  } finally {
+    favoriteLoading.value = false
   }
-} catch (error) {
-  if (error instanceof Error) {
-    favoriteError.value = error.message
-  } else {
-    favoriteError.value =
-      'Ocurrió un error inesperado.'
-  }
-} finally {
-  favoriteLoading.value = false
-}
 }
 
 // Comparte la publicación o copia el enlace al portapapeles
@@ -221,15 +227,14 @@ const shareView = async (): Promise<void> => {
     url: window.location.href,
   }
 
-  shareMessage.value = ''
-
   // Primero intenta utilizar el menú nativo del navegador
   if (typeof navigator.share === 'function') {
     try {
       await navigator.share(shareData)
 
-      shareMessage.value =
-        'Publicación compartida.'
+      toastStore.success(
+        'Publicación compartida.',
+      )
 
       return
     } catch (error) {
@@ -252,10 +257,13 @@ const shareView = async (): Promise<void> => {
       shareData.url,
     )
 
-    shareMessage.value = 'Enlace copiado.'
+    toastStore.success(
+      'Enlace copiado al portapapeles.',
+    )
   } catch {
-    shareMessage.value =
-      'No fue posible copiar el enlace.'
+    toastStore.error(
+      'No fue posible copiar el enlace.',
+    )
   }
 }
 </script>
@@ -351,23 +359,6 @@ const shareView = async (): Promise<void> => {
         </button>
       </div>
     </header>
-
-    <p
-      v-if="shareMessage"
-      class="share-message"
-      role="status"
-    >
-      {{ shareMessage }}
-    </p>
-
-    <!-- Error de favorito -->
-    <p
-      v-if="favoriteError"
-      class="favorite-error"
-      role="alert"
-    >
-      {{ favoriteError }}
-    </p>
 
     <!-- Hashtags -->
     <div
@@ -630,13 +621,6 @@ const shareView = async (): Promise<void> => {
   color: #6d28d9;
 }
 
-.share-message {
-  margin: 0;
-  padding: 0 24px 10px;
-  color: #15803d;
-  font-size: 11px;
-}
-
 /* Favoritos */
 
 .favorite-button {
@@ -675,13 +659,6 @@ const shareView = async (): Promise<void> => {
 .favorite-star {
   font-size: 15px;
   line-height: 1;
-}
-
-.favorite-error {
-  margin: 0;
-  padding: 0 24px 12px;
-  color: #b91c1c;
-  font-size: 11px;
 }
 
 .hashtags {
@@ -944,10 +921,6 @@ const shareView = async (): Promise<void> => {
   border-color: #8b5cf6;
   background: #302b4d;
   color: #c4b5fd;
-}
-
-:global(html[data-theme='dark'] .favorite-error) {
-  color: #f87171;
 }
 
 :global(html[data-theme='dark'] .hashtag) {

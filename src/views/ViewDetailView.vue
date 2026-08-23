@@ -38,10 +38,12 @@ import {
 } from '@/services/viewsService'
 
 import { useAuthStore } from '@/stores/auth'
+import { useToastStore } from '@/stores/toast'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const toastStore = useToastStore()
 
 // Publicación obtenida desde el API
 const view = ref<PoliticalView | null>(null)
@@ -53,11 +55,6 @@ const errorMessage = ref('')
 // Estado del favorito
 const isFavorite = ref(false)
 const favoriteLoading = ref(false)
-const favoriteMessage = ref('')
-const favoriteError = ref('')
-
-// Estado para compartir
-const shareMessage = ref('')
 
 // Estados para likes y dislikes
 const reactionLoading = ref<Record<string, boolean>>({})
@@ -68,7 +65,6 @@ const reactionError = ref('')
 const newThreadTitle = ref('')
 const newThreadContent = ref('')
 const creatingThread = ref(false)
-const threadMessage = ref('')
 
 // Hilos y comentarios
 const threads = ref<ViewThread[]>([])
@@ -81,9 +77,6 @@ const commentingThreadId = ref<string | null>(null)
 
 // Estados utilizados al despublicar
 const unpublishLoading = ref(false)
-const unpublishMessage = ref('')
-const unpublishError = ref('')
-
 
 // Indica si el usuario actual es el autor
 const isAuthor = computed(() => {
@@ -204,8 +197,6 @@ const loadView = async (): Promise<void> => {
 
 // Agrega o elimina la publicación de favoritos
 const toggleFavorite = async (): Promise<void> => {
-  favoriteMessage.value = ''
-  favoriteError.value = ''
 
   if (
     !authStore.isAuthenticated ||
@@ -231,23 +222,26 @@ const toggleFavorite = async (): Promise<void> => {
         authStore.token,
       )
 
-      favoriteMessage.value =
-        'Publicación eliminada de favoritos.'
+      toastStore.success(
+        'Publicación eliminada de favoritos.',
+      )
     } else {
       isFavorite.value = await addFavorite(
         view.value.id,
         authStore.token,
       )
 
-      favoriteMessage.value =
-        'Publicación guardada en favoritos.'
+      toastStore.success(
+        'Publicación guardada en favoritos.',
+      )
     }
   } catch (error) {
     if (error instanceof Error) {
-      favoriteError.value = error.message
+      toastStore.error(error.message)
     } else {
-      favoriteError.value =
-        'Ocurrió un error inesperado.'
+      toastStore.error(
+        'Ocurrió un error inesperado.',
+      )
     }
   } finally {
     favoriteLoading.value = false
@@ -365,7 +359,6 @@ const loadThreads = async (): Promise<void> => {
 // Crea un nuevo hilo dentro de la publicación
 const handleCreateThread = async (): Promise<void> => {
   threadsError.value = ''
-  threadMessage.value = ''
 
   if (
     !authStore.isAuthenticated ||
@@ -411,9 +404,9 @@ const handleCreateThread = async (): Promise<void> => {
     newThreadTitle.value = ''
     newThreadContent.value = ''
 
-    threadMessage.value =
-      'Hilo creado correctamente.'
-
+    toastStore.success(
+      'Hilo creado correctamente.',
+    )
     // Recarga la lista real de hilos
     await loadThreads()
   } catch (error) {
@@ -433,7 +426,6 @@ const handleCreateComment = async (
   threadId: string,
 ): Promise<void> => {
   threadsError.value = ''
-  threadMessage.value = ''
 
   if (
     !authStore.isAuthenticated ||
@@ -477,8 +469,9 @@ const handleCreateComment = async (
     // Limpiamos únicamente el comentario de este hilo
     commentContents.value[threadId] = ''
 
-    threadMessage.value =
-      'Comentario publicado correctamente.'
+    toastStore.success(
+      'Comentario publicado correctamente.',
+    )
 
     // Recargamos los hilos para mostrar el comentario nuevo
     await loadThreads()
@@ -500,8 +493,6 @@ const shareView = async (): Promise<void> => {
     return
   }
 
-  shareMessage.value = ''
-
   const title =
     view.value.sides.find(
       (side) => side.type === 'SIDE',
@@ -520,9 +511,9 @@ const shareView = async (): Promise<void> => {
     try {
       await navigator.share(shareData)
 
-      shareMessage.value =
-        'Publicación compartida.'
-
+      toastStore.success(
+        'Publicación compartida.',
+      )
       return
     } catch (error) {
       if (
@@ -539,11 +530,13 @@ const shareView = async (): Promise<void> => {
       shareData.url,
     )
 
-    shareMessage.value =
-      'Enlace copiado al portapapeles.'
+    toastStore.success(
+      'Enlace copiado al portapapeles.',
+    )
   } catch {
-    shareMessage.value =
-      'No fue posible copiar el enlace.'
+    toastStore.error(
+      'No fue posible copiar el enlace.',
+    )
   }
 }
 
@@ -598,8 +591,6 @@ const editView = async (): Promise<void> => {
 
 // Despublica la publicación actual
 const unpublishView = async (): Promise<void> => {
-  unpublishMessage.value = ''
-  unpublishError.value = ''
 
   if (
     !view.value ||
@@ -610,9 +601,9 @@ const unpublishView = async (): Promise<void> => {
 
   // Protección adicional en frontend
   if (!isSuperadmin.value) {
-    unpublishError.value =
-      'No tienes permiso para realizar esta acción.'
-
+    toastStore.error(
+      'No tienes permiso para realizar esta acción.',
+    )
     return
   }
 
@@ -640,15 +631,16 @@ const unpublishView = async (): Promise<void> => {
 
     // Actualizamos inmediatamente el estado en pantalla
     view.value.status = 'UNPUBLISHED'
-
-    unpublishMessage.value =
-      'La publicación fue despublicada correctamente.'
+    toastStore.success(
+      'La publicación fue despublicada correctamente.',
+    )
   } catch (error) {
     if (error instanceof Error) {
-      unpublishError.value = error.message
+      toastStore.error(error.message)
     } else {
-      unpublishError.value =
-        'Ocurrió un error inesperado.'
+      toastStore.error(
+        'Ocurrió un error inesperado.',
+      )
     }
   } finally {
     unpublishLoading.value = false
@@ -842,47 +834,6 @@ onMounted(() => {
               }}
             </button>
           </div>
-
-          <p
-            v-if="favoriteMessage"
-            class="action-message success"
-            role="status"
-          >
-            {{ favoriteMessage }}
-          </p>
-
-          <p
-            v-if="favoriteError"
-            class="action-message error"
-            role="alert"
-          >
-            {{ favoriteError }}
-          </p>
-
-          <p
-            v-if="shareMessage"
-            class="action-message success"
-            role="status"
-          >
-            {{ shareMessage }}
-          </p>
-
-          <p
-            v-if="unpublishMessage"
-            class="action-message success"
-            role="status"
-          >
-            {{ unpublishMessage }}
-          </p>
-
-          <p
-            v-if="unpublishError"
-            class="action-message error"
-            role="alert"
-          >
-            {{ unpublishError }}
-          </p>
-
         </header>
 
         <!-- Hashtags -->
@@ -1287,14 +1238,6 @@ onMounted(() => {
               }}
             </button>
           </form>
-
-          <p
-            v-if="threadMessage"
-            class="action-message success"
-            role="status"
-          >
-            {{ threadMessage }}
-          </p>
 
           <p
             v-if="threadsError"
