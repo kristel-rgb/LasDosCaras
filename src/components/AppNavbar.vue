@@ -2,6 +2,7 @@
 import {
   computed,
   onBeforeUnmount,
+  onMounted,
   ref,
   watch,
 } from 'vue'
@@ -24,6 +25,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const userMenuOpen = ref(false)
+const mobileMenuOpen = ref(false)
 
 // Estados de búsqueda
 const searchOpen = ref(false)
@@ -147,13 +149,6 @@ watch(
   },
 )
 
-// Evita dejar el temporizador activo al destruir el componente
-onBeforeUnmount(() => {
-  if (debounceTimer) {
-    clearTimeout(debounceTimer)
-  }
-})
-
 // Navega a la página completa de resultados
 const goToSearchResults = async (): Promise<void> => {
   const term = props.searchQuery?.trim() ?? ''
@@ -176,9 +171,54 @@ const goToSearchResults = async (): Promise<void> => {
 const handleLogout = async (): Promise<void> => {
   authStore.logout()
   userMenuOpen.value = false
+  mobileMenuOpen.value = false
 
   await router.push('/')
 }
+
+const toggleMobileMenu = (): void => {
+  mobileMenuOpen.value = !mobileMenuOpen.value
+  userMenuOpen.value = false
+}
+
+const closeMobileMenu = (): void => {
+  mobileMenuOpen.value = false
+}
+
+const handleDocumentClick = (
+  event: MouseEvent,
+): void => {
+  const target = event.target as HTMLElement
+
+  if (
+    !target.closest('.mobile-menu') &&
+    !target.closest('.mobile-menu-button')
+  ) {
+    mobileMenuOpen.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener(
+    'click',
+    handleDocumentClick,
+  )
+
+})
+
+// Evita dejar el temporizador activo al destruir el componente
+onBeforeUnmount(() => {
+  if (debounceTimer) {
+    clearTimeout(debounceTimer)
+  }
+
+  document.removeEventListener(
+    'click',
+    handleDocumentClick,
+  )
+
+})
+
 </script>
 
 <template>
@@ -437,7 +477,8 @@ const handleLogout = async (): Promise<void> => {
             @click="themeStore.toggleTheme"
             >
             {{ themeStore.theme === 'light' ? '☾' : '☀' }}
-            </button>
+        </button>
+        <div class="desktop-session-actions">
         <!-- Usuario autenticado -->
         <template v-if="authStore.isAuthenticated">
           <button
@@ -560,7 +601,127 @@ const handleLogout = async (): Promise<void> => {
           </RouterLink>
         </template>
       </div>
-    </div>
+      </div>  
+      <button
+        type="button"
+        class="mobile-menu-button"
+        :class="{ active: mobileMenuOpen }"
+        :aria-expanded="mobileMenuOpen"
+        aria-controls="mobile-navigation"
+        aria-label="Abrir menú de navegación"
+        @click="toggleMobileMenu"
+      >
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav
+        v-if="mobileMenuOpen"
+        id="mobile-navigation"
+        class="mobile-menu"
+        aria-label="Navegación móvil"
+      >
+        <RouterLink
+          class="mobile-menu-link"
+          to="/"
+          @click="closeMobileMenu"
+        >
+          Inicio
+        </RouterLink>
+
+        <RouterLink
+          class="mobile-menu-link"
+          to="/#categories"
+          @click="closeMobileMenu"
+        >
+          Categorías
+        </RouterLink>
+
+        <div class="mobile-menu-divider"></div>
+
+        <template v-if="authStore.isAuthenticated">
+          <RouterLink
+            class="mobile-menu-link"
+            to="/views/new"
+            @click="closeMobileMenu"
+          >
+            Publicar
+          </RouterLink>
+
+          <RouterLink
+            class="mobile-menu-link"
+            :to="{ name: 'profile' }"
+            @click="closeMobileMenu"
+          >
+            Mi perfil
+          </RouterLink>
+
+          <template
+            v-if="
+              authStore.user?.role === 'SUPERADMIN'
+            "
+          >
+            <div class="mobile-menu-divider"></div>
+
+            <span class="mobile-menu-label">
+              Administración
+            </span>
+
+            <RouterLink
+              class="mobile-menu-link"
+              :to="{ name: 'admin-users' }"
+              @click="closeMobileMenu"
+            >
+              Usuarios
+            </RouterLink>
+
+            <RouterLink
+              class="mobile-menu-link"
+              :to="{ name: 'admin-categories' }"
+              @click="closeMobileMenu"
+            >
+              Categorías
+            </RouterLink>
+
+            <RouterLink
+              class="mobile-menu-link"
+              :to="{ name: 'admin-moderation' }"
+              @click="closeMobileMenu"
+            >
+              Moderación
+            </RouterLink>
+          </template>
+
+          <div class="mobile-menu-divider"></div>
+
+          <button
+            type="button"
+            class="mobile-logout-button"
+            @click="handleLogout"
+          >
+            Cerrar sesión
+          </button>
+        </template>
+
+        <template v-else>
+          <RouterLink
+            class="mobile-menu-link"
+            to="/login"
+            @click="closeMobileMenu"
+          >
+            Iniciar sesión
+          </RouterLink>
+
+          <RouterLink
+            class="mobile-register-link"
+            to="/register"
+            @click="closeMobileMenu"
+          >
+            Crear cuenta
+          </RouterLink>
+        </template>
+      </nav>
+    </div> 
   </header>
 </template>
 
@@ -1094,78 +1255,218 @@ html[data-theme='dark'] body {
   color: #ffffff;
 }
 
-@media (max-width: 950px) {
+/* =========================================
+   Responsive — Mobile First
+   ========================================= */
+
+/* Móvil */
+
+.navbar-container {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  min-height: auto;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.brand {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.navigation {
+  display: none;
+}
+
+.search-wrapper {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+}
+
+.navbar-actions {
+  grid-column: 3;
+  grid-row: 1;
+  gap: 0;
+}
+
+.desktop-session-actions {
+  display: none;
+}
+
+.mobile-menu-button {
+  display: flex;
+  grid-column: 4;
+  grid-row: 1;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0;
+  border: 1px solid #e4e4e7;
+  border-radius: 9px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.mobile-menu-button.active {
+  border-color: #7c3aed;
+  box-shadow:
+    0 0 0 3px rgba(124, 58, 237, 0.14);
+}
+
+.mobile-menu-button span {
+  width: 17px;
+  height: 2px;
+  border-radius: 999px;
+  background: #52525b;
+}
+
+.mobile-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 12px;
+  left: 12px;
+  z-index: 300;
+
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
+  padding: 10px;
+  border: 1px solid #e4e4e7;
+  border-radius: 12px;
+  background: #ffffff;
+
+  box-shadow:
+    0 18px 45px rgba(15, 16, 32, 0.16);
+}
+
+.mobile-menu-link,
+.mobile-register-link {
+  display: block;
+  padding: 11px 12px;
+  border-radius: 8px;
+  color: #52525b;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.mobile-menu-link:hover {
+  background: #f5f3ff;
+  color: #6d28d9;
+}
+
+.mobile-register-link {
+  margin-top: 4px;
+  background: #6d28d9;
+  color: #ffffff;
+  text-align: center;
+}
+
+.mobile-menu-divider {
+  height: 1px;
+  margin: 7px 0;
+  background: #f0f0f0;
+}
+
+.mobile-menu-label {
+  padding: 5px 12px;
+  color: #a1a1aa;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mobile-logout-button {
+  width: 100%;
+  padding: 11px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #b91c1c;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Tablet */
+
+@media (min-width: 700px) {
+  .navbar-container {
+    grid-template-columns:
+      auto minmax(240px, 1fr) auto auto;
+    gap: 14px;
+    padding: 10px 20px;
+  }
+
+  .search-wrapper {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .navbar-actions {
+    grid-column: 3;
+  }
+
+  .mobile-menu-button {
+    grid-column: 4;
+  }
+
+  .mobile-menu {
+    right: 20px;
+    left: 20px;
+  }
+}
+
+/* Desktop */
+
+@media (min-width: 950px) {
+  .navbar-container {
+    display: flex;
+    min-height: 72px;
+    gap: 28px;
+    padding: 0 24px;
+  }
+
   .navigation {
-    display: none;
-  }
-
-  .user-name,
-  .chevron {
-    display: none;
+    display: flex;
   }
 
   .search-wrapper {
-    max-width: none;
-  }
-}
-
-@media (max-width: 700px) {
-  .navbar-container {
-    gap: 12px;
-    padding: 0 16px;
-  }
-
-  .brand-name {
-    display: none;
-  }
-
-  .search-wrapper {
+    width: auto;
+    max-width: 360px;
     flex: 1;
+    margin-left: auto;
   }
 
-  .create-button {
-    width: 38px;
-    height: 38px;
-    justify-content: center;
-    padding: 0;
-    border-radius: 50%;
-    font-size: 0;
+  .navbar-actions {
+    display: flex;
+    gap: 10px;
   }
 
-  .create-button span {
-    font-size: 20px;
+  .desktop-session-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
 
-  .login-link {
+  .mobile-menu-button,
+  .mobile-menu {
     display: none;
-  }
-
-  .register-link {
-    padding: 9px 10px;
-    font-size: 11px;
-  }
-}
-
-@media (max-width: 480px) {
-  .navbar-container {
-    min-height: 64px;
-  }
-
-  .search-container input {
-    padding-right: 8px;
-    font-size: 12px;
-  }
-
-  .register-link {
-    display: none;
-  }
-
-  .search-dropdown {
-    position: fixed;
-    top: 70px;
-    right: 12px;
-    left: 12px;
-    max-height: calc(100vh - 90px);
   }
 }
 
@@ -1319,5 +1620,59 @@ html[data-theme='dark'] body {
 
 :global(html[data-theme='dark'] .login-link) {
   color: #d4d4d8;
+}
+
+:global(
+  html[data-theme='dark']
+  .mobile-menu-button
+) {
+  border-color: #343447;
+  background: #1b1b2d;
+}
+
+:global(
+  html[data-theme='dark']
+  .mobile-menu-button span
+) {
+  background: #d4d4d8;
+}
+
+:global(
+  html[data-theme='dark']
+  .mobile-menu
+) {
+  border-color: #343447;
+  background: #171728;
+}
+
+:global(
+  html[data-theme='dark']
+  .mobile-menu-link
+) {
+  color: #d4d4d8;
+}
+
+:global(
+  html[data-theme='dark']
+  .mobile-menu-link:hover
+) {
+  background: #29243f;
+  color: #c4b5fd;
+}
+
+:global(
+  html[data-theme='dark']
+  .mobile-menu-divider
+) {
+  background: #343447;
+}
+
+:global(
+  html[data-theme='dark']
+  .mobile-menu-button.active
+) {
+  border-color: #8b5cf6;
+  box-shadow:
+    0 0 0 3px rgba(139, 92, 246, 0.18);
 }
 </style>
