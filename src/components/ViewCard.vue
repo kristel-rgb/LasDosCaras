@@ -28,6 +28,10 @@ const props = withDefaults(
   },
 )
 
+const emit = defineEmits<{
+  'remove-favorite': [viewId: string]
+}>()
+
 const router = useRouter()
 const authStore = useAuthStore()
 
@@ -176,28 +180,33 @@ const toggleFavorite = async (): Promise<void> => {
   favoriteLoading.value = true
   favoriteError.value = ''
 
-  try {
-    if (isFavorite.value) {
-      isFavorite.value = await removeFavorite(
-        props.view.id,
-        authStore.token,
-      )
-    } else {
-      isFavorite.value = await addFavorite(
-        props.view.id,
-        authStore.token,
-      )
-    }
-  } catch (error) {
-    if (error instanceof Error) {
-      favoriteError.value = error.message
-    } else {
-      favoriteError.value =
-        'Ocurrió un error inesperado.'
-    }
-  } finally {
-    favoriteLoading.value = false
+try {
+  if (isFavorite.value) {
+    isFavorite.value = await removeFavorite(
+      props.view.id,
+      authStore.token,
+    )
+
+    emit(
+      'remove-favorite',
+      props.view.id,
+    )
+  } else {
+    isFavorite.value = await addFavorite(
+      props.view.id,
+      authStore.token,
+    )
   }
+} catch (error) {
+  if (error instanceof Error) {
+    favoriteError.value = error.message
+  } else {
+    favoriteError.value =
+      'Ocurrió un error inesperado.'
+  }
+} finally {
+  favoriteLoading.value = false
+}
 }
 
 // Comparte la publicación o copia el enlace al portapapeles

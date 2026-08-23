@@ -1,4 +1,8 @@
-import type { LoginData, LoginResponse } from '@/models/auth'
+import type {
+  LoginData,
+  LoginResponse,
+  User,
+} from '@/models/auth'
 
 // URL base del API obtenida desde las variables de entorno
 const API_URL = import.meta.env.VITE_API_URL
@@ -47,5 +51,50 @@ export const login = async (loginData: LoginData): Promise<LoginResponse> => {
     }
 
     throw new Error('Ocurrió un error inesperado.')
+  }
+}
+
+export const getCurrentUser = async (
+  token: string,
+): Promise<User> => {
+  try {
+    const response = await fetch(
+      `${API_URL}/api/auth/me`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    )
+
+    if (response.status === 401) {
+      throw new Error(
+        'La sesión ha expirado.',
+      )
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        'No fue posible obtener los datos del usuario.',
+      )
+    }
+
+    const data = await response.json()
+
+    return data.user ?? data
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error(
+        'No fue posible conectar con el servidor.',
+      )
+    }
+
+    if (error instanceof Error) {
+      throw error
+    }
+
+    throw new Error(
+      'Ocurrió un error inesperado.',
+    )
   }
 }

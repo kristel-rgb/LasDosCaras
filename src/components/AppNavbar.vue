@@ -487,7 +487,13 @@ const handleLogout = async (): Promise<void> => {
               </div>
 
               <div class="dropdown-divider"></div>
-
+                <RouterLink
+                  class="dropdown-admin-link"
+                  :to="{ name: 'profile' }"
+                  @click="userMenuOpen = false"
+                >
+                  Mi perfil
+                </RouterLink>
               <template
                 v-if="
                   authStore.user?.role === 'SUPERADMIN'
@@ -524,6 +530,7 @@ const handleLogout = async (): Promise<void> => {
                 </div>
 
                 <div class="dropdown-divider"></div>
+              
               </template>
 
               <button

@@ -111,6 +111,56 @@ watch(
   },
 )
 
+// Guarda una publicación visitada en el historial local
+const saveToHistory = (
+  currentView: PoliticalView,
+): void => {
+  try {
+    const storageKey = 'lasdoscaras_history'
+
+    const storedHistory =
+      localStorage.getItem(storageKey)
+
+    const history = storedHistory
+      ? JSON.parse(storedHistory)
+      : []
+
+    const title =
+      currentView.sides.find(
+        (side) => side.type === 'SIDE',
+      )?.title ?? 'Sin título'
+
+    const category =
+      currentView.category?.name ??
+      'Sin categoría'
+
+    const newEntry = {
+      id: currentView.id,
+      titulo: title,
+      categoria: category,
+      fechaVista: new Date().toISOString(),
+    }
+
+    const filteredHistory =
+      Array.isArray(history)
+        ? history.filter(
+            (entry) =>
+              entry.id !== currentView.id,
+          )
+        : []
+
+    filteredHistory.unshift(newEntry)
+
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify(
+        filteredHistory.slice(0, 20),
+      ),
+    )
+  } catch {
+    // El historial no debe impedir cargar la publicación
+  }
+}
 
 // Obtiene la publicación utilizando el ID de la URL
 const loadView = async (): Promise<void> => {
@@ -133,6 +183,8 @@ const loadView = async (): Promise<void> => {
       viewId,
       authStore.token ?? undefined,
     )
+
+    saveToHistory(view.value)
 
     isFavorite.value = view.value.isFavorite
     await loadThreads()
