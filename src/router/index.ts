@@ -8,6 +8,8 @@ import CreateEditView from '@/views/CreateEditView.vue'
 import CategoryView from '@/views/CategoryView.vue'
 import SearchResultsView from '@/views/SearchResultsView.vue'
 import AuthorProfileView from '@/views/AuthorProfileView.vue'
+import ForbiddenView from '@/views/ForbiddenView.vue'
+import NotFoundView from '@/views/NotFoundView.vue'
 import AdminUsersView from '@/views/AdminUsersView.vue'
 import AdminCategoriesView from '@/views/AdminCategoriesView.vue'
 
@@ -64,6 +66,8 @@ const router = createRouter({
       name: 'author-profile',
       component: AuthorProfileView,
     },
+
+    // Rutas exclusivas para superadmin
     {
       path: '/admin/users',
       name: 'admin-users',
@@ -81,6 +85,20 @@ const router = createRouter({
         requiresAuth: true,
         requiresSuperadmin: true,
       },
+    },
+
+    // Acceso denegado
+    {
+      path: '/403',
+      name: 'forbidden',
+      component: ForbiddenView,
+    },
+
+    // Siempre debe ir de última
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: NotFoundView,
     },
   ],
 
@@ -115,7 +133,21 @@ router.beforeEach((to) => {
     return '/login'
   }
 
-  // Si ya inició sesión, no puede volver a la pantalla de login
+  // Si la ruta requiere superadmin, validamos el rol
+  if (to.meta.requiresSuperadmin && storedSession) {
+    try {
+      const session = JSON.parse(storedSession)
+
+      if (session.user?.role !== 'SUPERADMIN') {
+        return '/403'
+      }
+    } catch {
+      localStorage.removeItem('lasdoscaras_auth')
+      return '/login'
+    }
+  }
+
+  // Si ya inició sesión, no puede volver a login
   if (to.path === '/login' && storedSession) {
     return '/'
   }
