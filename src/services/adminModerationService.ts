@@ -1,0 +1,87 @@
+import type { PoliticalView } from '@/models/view'
+
+const API_URL = import.meta.env.VITE_API_URL
+
+export type AdminViewStatus =
+  | 'PUBLISHED'
+  | 'UNPUBLISHED'
+
+export interface AdminViewsResponse {
+  total: number
+  page: number
+  limit: number
+  views: PoliticalView[]
+}
+
+export interface AdminViewsQuery {
+  status?: AdminViewStatus
+  page?: number
+  limit?: number
+}
+
+// Obtiene las publicaciones disponibles para moderación
+export const getAdminViews = async (
+  token: string,
+  query: AdminViewsQuery = {},
+): Promise<AdminViewsResponse> => {
+  const params = new URLSearchParams()
+
+  if (query.status) {
+    params.set('status', query.status)
+  }
+
+  params.set(
+    'page',
+    String(query.page ?? 1),
+  )
+
+  params.set(
+    'limit',
+    String(query.limit ?? 20),
+  )
+
+  try {
+    const response = await fetch(
+      `${API_URL}/api/admin/views?${params.toString()}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    )
+
+    if (response.status === 401) {
+      throw new Error(
+        'Debes iniciar sesión.',
+      )
+    }
+
+    if (response.status === 403) {
+      throw new Error(
+        'No tienes permiso para acceder a moderación.',
+      )
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        'No fue posible cargar las publicaciones.',
+      )
+    }
+
+    return await response.json()
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error(
+        'No fue posible conectar con el servidor.',
+      )
+    }
+
+    if (error instanceof Error) {
+      throw error
+    }
+
+    throw new Error(
+      'Ocurrió un error inesperado.',
+    )
+  }
+}
