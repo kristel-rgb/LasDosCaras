@@ -4,7 +4,12 @@ import { useRouter } from 'vue-router'
 
 import AppNavbar from '@/components/AppNavbar.vue'
 import type { PoliticalView } from '@/models/view'
-import { getAdminViews } from '@/services/adminModerationService'
+
+import {
+  getAdminViews,
+  publishAdminView,
+} from '@/services/adminModerationService'
+
 import { unpublishViewById } from '@/services/viewsService'
 import { useAuthStore } from '@/stores/auth'
 
@@ -166,6 +171,57 @@ const unpublishView = async (
       'Publicación despublicada correctamente.'
 
     // Recargamos desde el backend para reflejar el estado real
+    await loadViews()
+  } catch (error) {
+    if (error instanceof Error) {
+      actionError.value = error.message
+    } else {
+      actionError.value =
+        'Ocurrió un error inesperado.'
+    }
+  } finally {
+    actionViewId.value = null
+  }
+}
+
+// Republicar
+const publishView = async (
+  view: PoliticalView,
+): Promise<void> => {
+  if (
+    !authStore.token ||
+    actionViewId.value ||
+    view.status !== 'UNPUBLISHED'
+  ) {
+    return
+  }
+
+  actionMessage.value = ''
+  actionError.value = ''
+
+  const title =
+    view.sides?.[0]?.title ??
+    'esta publicación'
+
+  const confirmed = window.confirm(
+    `¿Deseas republicar "${title}"?`,
+  )
+
+  if (!confirmed) {
+    return
+  }
+
+  actionViewId.value = view.id
+
+  try {
+    await publishAdminView(
+      view.id,
+      authStore.token,
+    )
+
+    actionMessage.value =
+      'Publicación republicada correctamente.'
+
     await loadViews()
   } catch (error) {
     if (error instanceof Error) {
@@ -503,6 +559,29 @@ onMounted(loadViews)
                           view.id
                             ? 'Procesando...'
                             : 'Despublicar'
+                        }}
+                      </button>
+
+                      <button
+                        v-if="
+                          view.status ===
+                          'UNPUBLISHED'
+                        "
+                        type="button"
+                        class="primary-button"
+                        :disabled="
+                          actionViewId ===
+                          view.id
+                        "
+                        @click="
+                          publishView(view)
+                        "
+                      >
+                        {{
+                          actionViewId ===
+                          view.id
+                            ? 'Procesando...'
+                            : 'Republicar'
                         }}
                       </button>
                     </div>
