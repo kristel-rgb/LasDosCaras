@@ -23,6 +23,7 @@ import {
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/models/auth'
 import { getCurrentUser } from '@/services/authService'
+import { useToastStore } from '@/stores/toast'
 
 type ProfileTab =
   | 'publications'
@@ -31,6 +32,7 @@ type ProfileTab =
 
 const authStore = useAuthStore()
 const router = useRouter()
+const toastStore = useToastStore()
 
 const activeTab =
   ref<ProfileTab>('publications')
@@ -42,8 +44,6 @@ const history = ref<HistoryEntry[]>([])
 
 const loading = ref(false)
 const errorMessage = ref('')
-const actionMessage = ref('')
-const actionError = ref('')
 
 const removingFavoriteId =
   ref<string | null>(null)
@@ -201,9 +201,6 @@ const removeFavorite = async (
     return
   }
 
-  actionMessage.value = ''
-  actionError.value = ''
-
   removingFavoriteId.value =
     viewId
 
@@ -219,19 +216,19 @@ const removeFavorite = async (
           view.id !== viewId,
       )
 
-    actionMessage.value =
-      'Publicación eliminada de favoritos.'
+    toastStore.success(
+      'Publicación eliminada de favoritos.',
+    )
   } catch (error) {
     if (error instanceof Error) {
-      actionError.value =
-        error.message
+      toastStore.error(error.message)
     } else {
-      actionError.value =
-        'Ocurrió un error inesperado.'
+      toastStore.error(
+        'Ocurrió un error inesperado.',
+      )
     }
   } finally {
-    removingFavoriteId.value =
-      null
+    removingFavoriteId.value = null
   }
 }
 
@@ -249,13 +246,18 @@ const clearHistory = (): void => {
   clearLocalHistory()
   history.value = []
 
-  actionMessage.value =
-    'Historial eliminado correctamente.'
+  toastStore.success(
+    'Historial eliminado correctamente.',
+  )
 }
 
 // Cierra la sesión
 const handleLogout = async (): Promise<void> => {
   authStore.logout()
+
+  toastStore.success(
+    'Sesión cerrada correctamente.',
+  )
 
   await router.push({
     name: 'tablero',
@@ -388,22 +390,6 @@ onMounted(loadProfile)
           </span>
         </button>
       </nav>
-
-      <p
-        v-if="actionMessage"
-        class="message success-message"
-        role="status"
-      >
-        {{ actionMessage }}
-      </p>
-
-      <p
-        v-if="actionError"
-        class="message error-message"
-        role="alert"
-      >
-        {{ actionError }}
-      </p>
 
       <!-- Loading -->
       <section
@@ -943,23 +929,6 @@ onMounted(loadProfile)
 .state-card strong {
   margin-top: 0;
   color: #27272a;
-}
-
-.message {
-  margin: 0 0 18px;
-  padding: 11px 13px;
-  border-radius: 8px;
-  font-size: 13px;
-}
-
-.success-message {
-  background: #f0fdf4;
-  color: #166534;
-}
-
-.error-message {
-  background: #fef2f2;
-  color: #991b1b;
 }
 
 .loader {

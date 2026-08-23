@@ -12,6 +12,7 @@ import type { SearchResponse } from '@/models/search'
 import { searchGlobal } from '@/services/searchService'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
+import { useToastStore } from '@/stores/toast'
 
 const props = defineProps<{
   searchQuery?: string
@@ -24,6 +25,8 @@ const emit = defineEmits<{
 const router = useRouter()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
+const toastStore = useToastStore()
+
 const userMenuOpen = ref(false)
 const mobileMenuOpen = ref(false)
 
@@ -172,6 +175,10 @@ const handleLogout = async (): Promise<void> => {
   authStore.logout()
   userMenuOpen.value = false
   mobileMenuOpen.value = false
+
+  toastStore.success(
+    'Sesión cerrada correctamente.',
+  )
 
   await router.push('/')
 }

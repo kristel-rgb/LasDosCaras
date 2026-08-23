@@ -15,16 +15,15 @@ import {
 } from '@/services/adminCategoriesService'
 import { useAuthStore } from '@/stores/auth'
 import { getViews } from '@/services/viewsService'
+import { useToastStore } from '@/stores/toast'
 
 const authStore = useAuthStore()
-
+const toastStore = useToastStore()
 const categories = ref<Category[]>([])
 const publicationCounts =
   ref<Record<string, number | null>>({})
 const loading = ref(false)
 const errorMessage = ref('')
-const actionMessage = ref('')
-const actionError = ref('')
 
 const search = ref('')
 
@@ -142,19 +141,11 @@ const loadCategories = async (): Promise<void> => {
   }
 }
 
-const clearMessages = (): void => {
-  actionMessage.value = ''
-  actionError.value = ''
-}
-
 const clearSearch = (): void => {
   search.value = ''
-  clearMessages()
 }
 
 const openCreateModal = (): void => {
-  clearMessages()
-
   editingCategory.value = null
   categoryName.value = ''
   formError.value = ''
@@ -167,8 +158,6 @@ const openEditModal = (
   if (category.deletedAt) {
     return
   }
-
-  clearMessages()
 
   editingCategory.value = category
   categoryName.value = category.name
@@ -212,16 +201,18 @@ const saveCategory = async (): Promise<void> => {
         authStore.token,
       )
 
-      actionMessage.value =
+      toastStore.success(
         'Categoría actualizada correctamente.'
+      )
     } else {
       await createAdminCategory(
         name,
         authStore.token,
       )
 
-      actionMessage.value =
+      toastStore.success(
         'Categoría creada correctamente.'
+      )
     }
 
     modalOpen.value = false
@@ -252,8 +243,6 @@ const removeCategory = async (
     return
   }
 
-  clearMessages()
-
   const confirmed = window.confirm(
     `¿Deseas eliminar la categoría "${category.name}"?`,
   )
@@ -270,19 +259,20 @@ const removeCategory = async (
       authStore.token,
     )
 
-    actionMessage.value =
+    toastStore.success(
       'Categoría eliminada correctamente.'
-
+    )
     await loadCategories()
   } catch (error) {
     if (error instanceof Error) {
-      actionError.value = error.message
+      toastStore.error(error.message)
     } else {
-      actionError.value =
-        'Ocurrió un error inesperado.'
+      toastStore.error(
+        'Ocurrió un error inesperado.',
+      )
     }
   } finally {
-    actionCategoryId.value = null
+  actionCategoryId.value = null
   }
 }
 
@@ -345,10 +335,7 @@ onMounted(loadCategories)
             :class="{
             active: statusFilter === 'all',
             }"
-            @click="
-            statusFilter = 'all';
-            clearMessages()
-            "
+            @click="statusFilter = 'all'"
         >
             Todas
             <span>{{ categories.length }}</span>
@@ -359,10 +346,7 @@ onMounted(loadCategories)
             :class="{
             active: statusFilter === 'active',
             }"
-            @click="
-            statusFilter = 'active';
-            clearMessages()
-            "
+            @click="statusFilter = 'active'"
         >
             Activas
             <span>{{ activeCategories }}</span>
@@ -373,10 +357,7 @@ onMounted(loadCategories)
             :class="{
             active: statusFilter === 'deleted',
             }"
-            @click="
-            statusFilter = 'deleted';
-            clearMessages()
-            "
+            @click="statusFilter = 'deleted'"
         >
             Eliminadas
             <span>{{ deletedCategories }}</span>
@@ -388,7 +369,6 @@ onMounted(loadCategories)
             type="search"
             placeholder="Buscar categoría..."
             aria-label="Buscar categorías"
-            @input="clearMessages"
           />
 
           <button
@@ -400,20 +380,6 @@ onMounted(loadCategories)
             Limpiar
           </button>
         </div>
-
-        <p
-          v-if="actionMessage"
-          class="message success-message"
-        >
-          {{ actionMessage }}
-        </p>
-
-        <p
-          v-if="actionError"
-          class="message error-message"
-        >
-          {{ actionError }}
-        </p>
 
         <div
           v-if="loading"
@@ -992,19 +958,6 @@ td {
   font-size: 12px;
 }
 
-.message {
-  margin: 0 0 18px;
-  padding: 11px 13px;
-  border-radius: 8px;
-  font-size: 13px;
-}
-
-.success-message {
-  background: #f0fdf4;
-  color: #166534;
-}
-
-.error-message,
 .form-error {
   color: #991b1b;
 }

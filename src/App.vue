@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// Componente raíz de la aplicación
+import ToastContainer from '@/components/ToastContainer.vue'
 </script>
 
 <template>
   <RouterView />
+  <ToastContainer />
 </template>
