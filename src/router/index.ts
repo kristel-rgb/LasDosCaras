@@ -13,6 +13,7 @@ import NotFoundView from '@/views/NotFoundView.vue'
 import AdminUsersView from '@/views/AdminUsersView.vue'
 import AdminCategoriesView from '@/views/AdminCategoriesView.vue'
 import AdminModerationView from '@/views/AdminModerationView.vue'
+import ProfileView from '@/views/ProfileView.vue'
 
 // Configuración principal de las rutas de la aplicación
 const router = createRouter({
@@ -66,6 +67,15 @@ const router = createRouter({
       path: '/authors/:id',
       name: 'author-profile',
       component: AuthorProfileView,
+    },
+
+    {
+      path: '/profile',
+      name: 'profile',
+      component: ProfileView,
+      meta: {
+        requiresAuth: true,
+      },
     },
 
     // Rutas exclusivas para superadmin
