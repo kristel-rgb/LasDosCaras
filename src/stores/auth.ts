@@ -37,6 +37,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated.value = false
 
     localStorage.removeItem('lasdoscaras_auth')
+    localStorage.removeItem('lasdoscaras_favorites')
   }
 
   // Recupera la sesión guardada cuando la aplicación inicia

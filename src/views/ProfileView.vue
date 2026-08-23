@@ -21,6 +21,8 @@ import {
   getViews,
 } from '@/services/viewsService'
 import { useAuthStore } from '@/stores/auth'
+import type { User } from '@/models/auth'
+import { getCurrentUser } from '@/services/authService'
 
 type ProfileTab =
   | 'publications'
@@ -46,8 +48,12 @@ const actionError = ref('')
 const removingFavoriteId =
   ref<string | null>(null)
 
+const profileUser = ref<User | null>(
+  authStore.user,
+)
+
 const user = computed(() => {
-  return authStore.user
+  return profileUser.value
 })
 
 // Carga toda la información necesaria del perfil
@@ -66,7 +72,14 @@ const loadProfile = async (): Promise<void> => {
   loading.value = true
   errorMessage.value = ''
 
+
   try {
+    const currentUser = await getCurrentUser(
+      authStore.token,
+    )
+
+    profileUser.value = currentUser
+    
     // Publicaciones propias
     const ownViewsResponse =
       await getViews(
