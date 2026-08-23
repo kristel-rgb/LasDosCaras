@@ -9,6 +9,7 @@ import CategoryView from '@/views/CategoryView.vue'
 import SearchResultsView from '@/views/SearchResultsView.vue'
 import AuthorProfileView from '@/views/AuthorProfileView.vue'
 import AdminUsersView from '@/views/AdminUsersView.vue'
+import AdminCategoriesView from '@/views/AdminCategoriesView.vue'
 
 // Configuración principal de las rutas de la aplicación
 const router = createRouter({
@@ -67,6 +68,15 @@ const router = createRouter({
       path: '/admin/users',
       name: 'admin-users',
       component: AdminUsersView,
+      meta: {
+        requiresAuth: true,
+        requiresSuperadmin: true,
+      },
+    },
+    {
+      path: '/admin/categories',
+      name: 'admin-categories',
+      component: AdminCategoriesView,
       meta: {
         requiresAuth: true,
         requiresSuperadmin: true,

@@ -505,6 +505,14 @@ const handleLogout = async (): Promise<void> => {
                   >
                     Usuarios
                   </RouterLink>
+
+                  <RouterLink
+                    class="dropdown-admin-link"
+                    :to="{ name: 'admin-categories' }"
+                    @click="userMenuOpen = false"
+                  >
+                    Categorías
+                  </RouterLink>
                 </div>
 
                 <div class="dropdown-divider"></div>
