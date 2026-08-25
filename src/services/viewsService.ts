@@ -6,8 +6,19 @@ import type {
   ViewsResponse,
 } from '@/models/view'
 
+import {
+  getCache,
+  removeCacheByPrefix,
+  setCache,
+} from '@/utils/cache'
+
 // URL base del API obtenida desde las variables de entorno
 const API_URL = import.meta.env.VITE_API_URL
+
+const VIEWS_CACHE_PREFIX = 'views:'
+
+const VIEWS_CACHE_TTL =
+  2 * 60 * 1000 // 2 minutos
 
 // Parámetros opcionales disponibles para consultar publicaciones
 export interface ViewsQuery {
@@ -61,6 +72,20 @@ export const getViews = async (
     ? `${API_URL}/api/views?${queryString}`
     : `${API_URL}/api/views`
 
+    const cacheKey =
+      `${VIEWS_CACHE_PREFIX}${queryString || 'all'}`
+
+    // Solamente usamos el caché para consultas públicas.
+    // Las respuestas autenticadas contienen información
+    // específica del usuario, como favoritos y reacciones.
+    if (!token) {
+      const cachedViews =
+        getCache<ViewsResponse>(cacheKey)
+
+      if (cachedViews) {
+        return cachedViews
+      }
+    }
   try {
     const response = await fetch(url, {
       headers: token
@@ -76,7 +101,18 @@ export const getViews = async (
       )
     }
 
-    return await response.json()
+    const data =
+      await response.json() as ViewsResponse
+
+    if (!token) {
+      setCache(
+        cacheKey,
+        data,
+        VIEWS_CACHE_TTL,
+      )
+    }
+    return data
+
   } catch (error) {
     if (error instanceof Error) {
       throw error
@@ -185,7 +221,12 @@ export const reactToViewSide = async (
       )
     }
 
-    return await response.json()
+    const data =
+      await response.json() as ViewReactionResponse
+
+    removeCacheByPrefix(VIEWS_CACHE_PREFIX)
+
+    return data
   } catch (error) {
     if (error instanceof TypeError) {
       throw new Error(
@@ -245,6 +286,8 @@ export const unpublishViewById = async (
     }
 
     const data = await response.json()
+
+    removeCacheByPrefix(VIEWS_CACHE_PREFIX)
 
     // La API puede devolver { view: {...} }
     return data.view ?? data

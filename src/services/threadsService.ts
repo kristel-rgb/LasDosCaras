@@ -1,7 +1,11 @@
 import type { ViewThread } from '@/models/thread'
+import {
+  removeCacheByPrefix,
+} from '@/utils/cache'
 
 // URL base del API
 const API_URL = import.meta.env.VITE_API_URL
+const VIEWS_CACHE_PREFIX = 'views:'
 
 // Obtiene los hilos de una publicación
 export const getViewThreads = async (
@@ -102,6 +106,8 @@ export const createViewThread = async (
     }
 
     const data = await response.json()
+
+    removeCacheByPrefix(VIEWS_CACHE_PREFIX)
 
     return data.thread ?? data
   } catch (error) {
