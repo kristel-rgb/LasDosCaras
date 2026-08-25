@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+
+import {
+  computed,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+} from 'vue'
+
 import { useRoute, useRouter } from 'vue-router'
 import AppNavbar from '@/components/AppNavbar.vue'
 
@@ -8,6 +16,11 @@ import type { ViewFormPayload } from '@/models/viewForm'
 
 import { getCategories } from '@/services/categoriesService'
 import { createView, getViewForEditing, updateView, ViewEditorError } from '@/services/viewEditorService'
+import {
+  clearViewDraft,
+  getViewDraft,
+  saveViewDraft,
+} from '@/services/draftService'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 
@@ -66,6 +79,61 @@ counterpart: {
 },
   hashtags: [],
 })
+
+// Guarda automáticamente el formulario como borrador
+watch(
+  form,
+  (currentForm) => {
+    // Los borradores solo se guardan
+    // al crear una publicación nueva
+    if (isEditMode.value) {
+      return
+    }
+
+    saveViewDraft(
+      JSON.parse(
+        JSON.stringify(currentForm),
+      ),
+    )
+  },
+  {
+    deep: true,
+  },
+)
+
+// Recupera el borrador guardado
+const restoreViewDraft = (): void => {
+  if (isEditMode.value) {
+    return
+  }
+
+  const draft = getViewDraft()
+
+  if (!draft) {
+    return
+  }
+
+  const shouldRestore = window.confirm(
+    'Encontramos un borrador guardado. ¿Deseas restaurarlo?',
+  )
+
+  if (!shouldRestore) {
+    clearViewDraft()
+    return
+  }
+
+  form.categoryId =
+    draft.form.categoryId
+
+  form.side =
+    draft.form.side
+
+  form.counterpart =
+    draft.form.counterpart
+
+  form.hashtags =
+    draft.form.hashtags ?? []
+}
 
 // Carga las categorías desde el API
 const loadCategories = async (): Promise<void> => {
@@ -310,15 +378,17 @@ const submitForm = async (): Promise<void> => {
         'Publicación actualizada correctamente.',
       )
     } else {
-      await createView(
-        payload,
-        authStore.token,
-      )
+        await createView(
+          payload,
+          authStore.token,
+        )
 
-      toastStore.success(
-        'Publicación creada correctamente.',
-      )
-    }
+        clearViewDraft()
+
+        toastStore.success(
+          'Publicación creada correctamente.',
+        )
+      }
 
     await router.push('/')
   } catch (error) {
@@ -447,6 +517,8 @@ onMounted(async () => {
 
   if (isEditMode.value) {
     await loadExistingView()
+  } else {
+    restoreViewDraft()
   }
 })
 </script>
