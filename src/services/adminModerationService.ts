@@ -1,6 +1,10 @@
 import type { PoliticalView } from '@/models/view'
+import {
+  removeCacheByPrefix,
+} from '@/utils/cache'
 
 const API_URL = import.meta.env.VITE_API_URL
+const VIEWS_CACHE_PREFIX = 'views:'
 
 export type AdminViewStatus =
   | 'PUBLISHED'
@@ -126,6 +130,8 @@ export const publishAdminView = async (
     }
 
     const data = await response.json()
+
+    removeCacheByPrefix(VIEWS_CACHE_PREFIX)
 
     return data.view ?? data
   } catch (error) {

@@ -3,7 +3,12 @@ import type {
   Category,
 } from '@/models/category'
 
+import {
+  removeCache,
+} from '@/utils/cache'
+
 const API_URL = import.meta.env.VITE_API_URL
+const CATEGORIES_CACHE_KEY = 'categories'
 
 interface CategoryResponse {
   category: Category
@@ -87,6 +92,8 @@ export const createAdminCategory = async (
   const data: CategoryResponse =
     await response.json()
 
+    removeCache(CATEGORIES_CACHE_KEY)
+
   return data.category
 }
 
@@ -127,6 +134,8 @@ export const updateAdminCategory = async (
   const data: CategoryResponse =
     await response.json()
 
+    removeCache(CATEGORIES_CACHE_KEY)
+
   return data.category
 }
 
@@ -152,4 +161,5 @@ export const deleteAdminCategory = async (
       ),
     )
   }
+  removeCache(CATEGORIES_CACHE_KEY)
 }

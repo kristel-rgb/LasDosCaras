@@ -1,7 +1,11 @@
 import type { PoliticalView } from '@/models/view'
 import type { ViewFormPayload } from '@/models/viewForm'
+import {
+  removeCacheByPrefix,
+} from '@/utils/cache'
 
 const API_URL = import.meta.env.VITE_API_URL
+const VIEWS_CACHE_PREFIX = 'views:'
 
 interface ViewMutationResponse {
   view: PoliticalView
@@ -73,6 +77,8 @@ export const createView = async (
 
     const data =
       (await response.json()) as ViewMutationResponse
+
+      removeCacheByPrefix(VIEWS_CACHE_PREFIX)
 
     return data.view
   } catch (error) {
@@ -208,6 +214,8 @@ export const createView = async (
 
         const data =
         (await response.json()) as ViewMutationResponse
+
+        removeCacheByPrefix(VIEWS_CACHE_PREFIX)
 
         return data.view
     } catch (error) {
