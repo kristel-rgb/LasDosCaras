@@ -3,8 +3,13 @@ import {
   removeCacheByPrefix,
 } from '@/utils/cache'
 
+import {
+  apiFetch,
+} from '@/utils/network'
+
 const API_URL = import.meta.env.VITE_API_URL
 const VIEWS_CACHE_PREFIX = 'views:'
+const VIEW_CACHE_PREFIX = 'view:'
 
 export type AdminViewStatus =
   | 'PUBLISHED'
@@ -45,7 +50,7 @@ export const getAdminViews = async (
   )
 
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/api/admin/views?${params.toString()}`,
       {
         headers: {
@@ -95,7 +100,7 @@ export const publishAdminView = async (
   token: string,
 ): Promise<PoliticalView> => {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/api/views/${viewId}/publish`,
       {
         method: 'PATCH',
@@ -132,6 +137,7 @@ export const publishAdminView = async (
     const data = await response.json()
 
     removeCacheByPrefix(VIEWS_CACHE_PREFIX)
+    removeCacheByPrefix(VIEW_CACHE_PREFIX)
 
     return data.view ?? data
   } catch (error) {

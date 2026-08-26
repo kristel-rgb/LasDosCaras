@@ -1,3 +1,7 @@
+import {
+  apiFetch,
+} from '@/utils/network'
+
 // URL base del API obtenida desde las variables de entorno
 const API_URL = import.meta.env.VITE_API_URL
 
@@ -16,7 +20,7 @@ export const getMyFavorites = async (
   token: string,
 ): Promise<string[]> => {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/api/users/me/favorites`,
       {
         method: 'GET',
@@ -63,7 +67,7 @@ export const addFavorite = async (
   token: string,
 ): Promise<boolean> => {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/api/views/${viewId}/favorite`,
       {
         method: 'POST',
@@ -110,7 +114,7 @@ export const removeFavorite = async (
   token: string,
 ): Promise<boolean> => {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/api/views/${viewId}/favorite`,
       {
         method: 'DELETE',
@@ -148,5 +152,18 @@ export const removeFavorite = async (
     throw new Error(
       'Ocurrió un error inesperado.',
     )
+  }
+}
+export const saveFavoriteIds = (
+  favorites: string[],
+): void => {
+  try {
+    localStorage.setItem(
+      'lasdoscaras_favorites',
+      JSON.stringify(favorites),
+    )
+  } catch {
+    // Un fallo de localStorage no debe
+    // impedir completar el inicio de sesión.
   }
 }

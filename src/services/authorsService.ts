@@ -3,6 +3,10 @@ import type {
   PublicAuthor,
 } from '@/models/author'
 
+import {
+  apiFetch,
+} from '@/utils/network'
+
 const API_URL = import.meta.env.VITE_API_URL
 
 // Obtiene la información pública de un autor
@@ -10,7 +14,7 @@ export const getAuthorById = async (
   authorId: string,
 ): Promise<PublicAuthor> => {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/api/authors/${authorId}`,
     )
 

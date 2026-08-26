@@ -3,9 +3,14 @@ import {
   removeCacheByPrefix,
 } from '@/utils/cache'
 
+import {
+  apiFetch,
+} from '@/utils/network'
+
 // URL base del API
 const API_URL = import.meta.env.VITE_API_URL
 const VIEWS_CACHE_PREFIX = 'views:'
+const VIEW_CACHE_PREFIX = 'view:'
 
 // Obtiene los hilos de una publicación
 export const getViewThreads = async (
@@ -13,7 +18,7 @@ export const getViewThreads = async (
   token?: string,
 ): Promise<ViewThread[]> => {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/api/views/${viewId}/threads`,
       {
         headers: token
@@ -69,7 +74,7 @@ export const createViewThread = async (
   token: string,
 ): Promise<ViewThread> => {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/api/views/${viewId}/threads`,
       {
         method: 'POST',
@@ -108,6 +113,7 @@ export const createViewThread = async (
     const data = await response.json()
 
     removeCacheByPrefix(VIEWS_CACHE_PREFIX)
+    removeCacheByPrefix(VIEW_CACHE_PREFIX)
 
     return data.thread ?? data
   } catch (error) {
@@ -135,7 +141,7 @@ export const createThreadComment = async (
   token: string,
 ): Promise<void> => {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/api/views/${viewId}/threads/${threadId}/comments`,
       {
         method: 'POST',

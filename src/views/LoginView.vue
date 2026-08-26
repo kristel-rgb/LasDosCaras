@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { getMyFavorites } from '@/services/favoritesService'
-import { useRouter } from 'vue-router'
+import { getMyFavorites, saveFavoriteIds, } from '@/services/favoritesService'
+import { useRoute, useRouter } from 'vue-router'
 import { ref } from 'vue'
 
 import { login } from '@/services/authService'
@@ -12,7 +12,7 @@ const authStore = useAuthStore()
 const toastStore = useToastStore()
 // Router utilizado para navegar después de iniciar sesión
 const router = useRouter()
-
+const route = useRoute()
 // Datos ingresados en el formulario
 const email = ref('')
 const password = ref('')
@@ -23,6 +23,14 @@ const showPassword = ref(false)
 // Estados utilizados para mostrar carga y errores
 const loading = ref(false)
 const errorMessage = ref('')
+
+if (
+  route.query.reason ===
+  'session-expired'
+) {
+  errorMessage.value =
+    'Su sesión ha expirado.'
+}
 
 // Ejecuta el inicio de sesión contra el API
 const handleLogin = async () => {
@@ -52,10 +60,7 @@ const handleLogin = async () => {
     const favorites = await getMyFavorites(response.token)
 
     // Guardamos los favoritos para utilizarlos en otras pantallas
-    localStorage.setItem(
-      'lasdoscaras_favorites',
-      JSON.stringify(favorites),
-    )
+    saveFavoriteIds(favorites)
 
     // Redirigimos al usuario después de iniciar sesión correctamente
     router.push('/')

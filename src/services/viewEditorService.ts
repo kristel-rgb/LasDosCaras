@@ -1,11 +1,17 @@
 import type { PoliticalView } from '@/models/view'
 import type { ViewFormPayload } from '@/models/viewForm'
 import {
+  removeCache,
   removeCacheByPrefix,
 } from '@/utils/cache'
 
+import {
+  apiFetch,
+} from '@/utils/network'
+
 const API_URL = import.meta.env.VITE_API_URL
 const VIEWS_CACHE_PREFIX = 'views:'
+const VIEW_CACHE_PREFIX = 'view:'
 
 interface ViewMutationResponse {
   view: PoliticalView
@@ -28,7 +34,7 @@ export const createView = async (
   token: string,
 ): Promise<PoliticalView> => {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/api/views`,
       {
         method: 'POST',
@@ -79,6 +85,8 @@ export const createView = async (
       (await response.json()) as ViewMutationResponse
 
       removeCacheByPrefix(VIEWS_CACHE_PREFIX)
+      removeCacheByPrefix(VIEW_CACHE_PREFIX)
+      removeCache('hashtags')
 
     return data.view
   } catch (error) {
@@ -106,7 +114,7 @@ export const createView = async (
     token: string,
     ): Promise<PoliticalView> => {
     try {
-        const response = await fetch(
+        const response = await apiFetch(
         `${API_URL}/api/views/${viewId}`,
         {
             headers: {
@@ -165,7 +173,7 @@ export const createView = async (
     token: string,
     ): Promise<PoliticalView> => {
     try {
-        const response = await fetch(
+        const response = await apiFetch(
         `${API_URL}/api/views/${viewId}`,
         {
             method: 'PUT',
@@ -216,6 +224,8 @@ export const createView = async (
         (await response.json()) as ViewMutationResponse
 
         removeCacheByPrefix(VIEWS_CACHE_PREFIX)
+        removeCacheByPrefix(VIEW_CACHE_PREFIX)
+        removeCache('hashtags')
 
         return data.view
     } catch (error) {

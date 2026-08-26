@@ -15,6 +15,11 @@ import type { Category } from '@/models/category'
 import type { ViewFormPayload } from '@/models/viewForm'
 
 import { getCategories } from '@/services/categoriesService'
+import {
+  getHashtags,
+  type Hashtag,
+} from '@/services/hashtagsService'
+
 import { createView, getViewForEditing, updateView, ViewEditorError } from '@/services/viewEditorService'
 import {
   clearViewDraft,
@@ -51,6 +56,7 @@ const categories = ref<Category[]>([])
 const categoriesLoading = ref(false)
 const categoriesError = ref('')
 const hashtagInput = ref('')
+const availableHashtags = ref<Hashtag[]>([])
 
 // Estado principal del formulario
 const form = reactive<ViewFormPayload>({
@@ -155,6 +161,16 @@ const loadCategories = async (): Promise<void> => {
     }
   } finally {
     categoriesLoading.value = false
+  }
+}
+
+const loadHashtags = async (): Promise<void> => {
+  try {
+    const response = await getHashtags()
+
+    availableHashtags.value = response.hashtags
+  } catch {
+    availableHashtags.value = []
   }
 }
 
@@ -513,7 +529,10 @@ const loadExistingView = async (): Promise<void> => {
 }
 
 onMounted(async () => {
-  await loadCategories()
+  await Promise.all([
+    loadCategories(),
+    loadHashtags(),
+  ])
 
   if (isEditMode.value) {
     await loadExistingView()
@@ -898,9 +917,18 @@ onMounted(async () => {
                 id="hashtag"
                 v-model="hashtagInput"
                 type="text"
+                list="available-hashtags"
                 placeholder="Ej. educación"
                 @keydown.enter.prevent="addHashtag"
             />
+
+            <datalist id="available-hashtags">
+              <option
+                v-for="hashtag in availableHashtags"
+                :key="hashtag.id"
+                :value="hashtag.name"
+              ></option>
+            </datalist>
             </div>
 
             <button

@@ -40,6 +40,10 @@ import {
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 
+import {
+  saveHistoryEntry,
+} from '@/services/profileService'
+
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
@@ -108,51 +112,20 @@ watch(
 const saveToHistory = (
   currentView: PoliticalView,
 ): void => {
-  try {
-    const storageKey = 'lasdoscaras_history'
+  const title =
+    currentView.sides.find(
+      (side) => side.type === 'SIDE',
+    )?.title ?? 'Sin título'
 
-    const storedHistory =
-      localStorage.getItem(storageKey)
+  const category =
+    currentView.category?.name ??
+    'Sin categoría'
 
-    const history = storedHistory
-      ? JSON.parse(storedHistory)
-      : []
-
-    const title =
-      currentView.sides.find(
-        (side) => side.type === 'SIDE',
-      )?.title ?? 'Sin título'
-
-    const category =
-      currentView.category?.name ??
-      'Sin categoría'
-
-    const newEntry = {
-      id: currentView.id,
-      titulo: title,
-      categoria: category,
-      fechaVista: new Date().toISOString(),
-    }
-
-    const filteredHistory =
-      Array.isArray(history)
-        ? history.filter(
-            (entry) =>
-              entry.id !== currentView.id,
-          )
-        : []
-
-    filteredHistory.unshift(newEntry)
-
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify(
-        filteredHistory.slice(0, 20),
-      ),
-    )
-  } catch {
-    // El historial no debe impedir cargar la publicación
-  }
+  saveHistoryEntry({
+    id: currentView.id,
+    titulo: title,
+    categoria: category,
+  })
 }
 
 // Obtiene la publicación utilizando el ID de la URL

@@ -2,6 +2,10 @@ import type {
   SearchResponse,
 } from '@/models/search'
 
+import {
+  apiFetch,
+} from '@/utils/network'
+
 // URL base del API obtenida desde las variables de entorno
 const API_URL = import.meta.env.VITE_API_URL
 
@@ -21,7 +25,7 @@ export const searchGlobal = async (
   }
 
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/api/search?q=${encodeURIComponent(term)}`,
     )
 

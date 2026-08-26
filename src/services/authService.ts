@@ -4,13 +4,17 @@ import type {
   User,
 } from '@/models/auth'
 
+import {
+  apiFetch,
+} from '@/utils/network'
+
 // URL base del API obtenida desde las variables de entorno
 const API_URL = import.meta.env.VITE_API_URL
 
 // Envía las credenciales al API y devuelve el token JWT junto con el usuario
 export const login = async (loginData: LoginData): Promise<LoginResponse> => {
   try {
-    const response = await fetch(`${API_URL}/api/auth/login`, {
+    const response = await apiFetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -58,7 +62,7 @@ export const getCurrentUser = async (
   token: string,
 ): Promise<User> => {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/api/auth/me`,
       {
         headers: {

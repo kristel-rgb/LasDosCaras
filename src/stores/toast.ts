@@ -55,7 +55,7 @@ export const useToastStore = defineStore(
 
     const success = (
       message: string,
-      duration?: number,
+      duration = 2500,
     ): number => {
       return showToast(
         message,
@@ -66,7 +66,7 @@ export const useToastStore = defineStore(
 
     const error = (
       message: string,
-      duration?: number,
+      duration = 4500,
     ): number => {
       return showToast(
         message,
@@ -77,7 +77,7 @@ export const useToastStore = defineStore(
 
     const warning = (
       message: string,
-      duration?: number,
+      duration = 4000,
     ): number => {
       return showToast(
         message,
@@ -88,7 +88,7 @@ export const useToastStore = defineStore(
 
     const info = (
       message: string,
-      duration?: number,
+      duration = 3000,
     ): number => {
       return showToast(
         message,

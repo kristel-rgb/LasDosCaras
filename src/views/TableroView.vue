@@ -14,6 +14,10 @@ import type { PoliticalView } from '@/models/view'
 import { getCategories } from '@/services/categoriesService'
 import { getViews } from '@/services/viewsService'
 import { useAuthStore } from '@/stores/auth'
+import {
+  getBoardFilters,
+  saveBoardFilters,
+} from '@/services/filtersService'
 
 // Publicaciones
 const views = ref<PoliticalView[]>([])
@@ -33,6 +37,20 @@ const selectedCategory = ref('')
 const selectedSort = ref<
   'recent' | 'likes' | 'dislikes'
 >('recent')
+
+const restoreFilters = (): void => {
+  const savedFilters = getBoardFilters()
+
+  if (!savedFilters) {
+    return
+  }
+
+  selectedCategory.value =
+    savedFilters.categoryId
+
+  selectedSort.value =
+    savedFilters.sort
+}
 
 // Búsqueda
 const searchQuery = ref('')
@@ -145,16 +163,27 @@ const selectCategory = async (
 ): Promise<void> => {
   selectedCategory.value = categoryId
 
+  saveBoardFilters({
+    categoryId: selectedCategory.value,
+    sort: selectedSort.value,
+  })
+
   await loadViews()
 }
 
 // Cambia el orden y vuelve a la primera página
 const handleSortChange = async (): Promise<void> => {
+  saveBoardFilters({
+    categoryId: selectedCategory.value,
+    sort: selectedSort.value,
+  })
   await loadViews()
 }
 
 // Carga inicial
 onMounted(async () => {
+  restoreFilters()
+
   await Promise.all([
     loadCategories(),
     loadViews(),

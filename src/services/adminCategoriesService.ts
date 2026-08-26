@@ -7,6 +7,10 @@ import {
   removeCache,
 } from '@/utils/cache'
 
+import {
+  apiFetch,
+} from '@/utils/network'
+
 const API_URL = import.meta.env.VITE_API_URL
 const CATEGORIES_CACHE_KEY = 'categories'
 
@@ -35,7 +39,7 @@ const getErrorMessage = async (
 export const getAdminCategories = async (
   token: string,
 ): Promise<CategoriesResponse> => {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/api/admin/categories`,
     {
       headers: {
@@ -60,7 +64,7 @@ export const createAdminCategory = async (
   name: string,
   token: string,
 ): Promise<Category> => {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/api/admin/categories`,
     {
       method: 'POST',
@@ -102,7 +106,7 @@ export const updateAdminCategory = async (
   name: string,
   token: string,
 ): Promise<Category> => {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/api/admin/categories/${categoryId}`,
     {
       method: 'PUT',
@@ -143,7 +147,7 @@ export const deleteAdminCategory = async (
   categoryId: string,
   token: string,
 ): Promise<void> => {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/api/admin/categories/${categoryId}`,
     {
       method: 'DELETE',

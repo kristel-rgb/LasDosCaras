@@ -8,14 +8,21 @@ import type {
 
 import {
   getCache,
+  getStaleCache,
   removeCacheByPrefix,
   setCache,
 } from '@/utils/cache'
+
+import {
+  apiFetch,
+  OfflineError,
+} from '@/utils/network'
 
 // URL base del API obtenida desde las variables de entorno
 const API_URL = import.meta.env.VITE_API_URL
 
 const VIEWS_CACHE_PREFIX = 'views:'
+const VIEW_CACHE_PREFIX = 'view:'
 
 const VIEWS_CACHE_TTL =
   2 * 60 * 1000 // 2 minutos
@@ -72,8 +79,11 @@ export const getViews = async (
     ? `${API_URL}/api/views?${queryString}`
     : `${API_URL}/api/views`
 
+    const cacheScope =
+      token ? 'auth' : 'public'
+
     const cacheKey =
-      `${VIEWS_CACHE_PREFIX}${queryString || 'all'}`
+      `${VIEWS_CACHE_PREFIX}${cacheScope}:${queryString || 'all'}`
 
     // Solamente usamos el caché para consultas públicas.
     // Las respuestas autenticadas contienen información
@@ -87,7 +97,7 @@ export const getViews = async (
       }
     }
   try {
-    const response = await fetch(url, {
+    const response = await apiFetch(url, {
       headers: token
         ? {
             Authorization: `Bearer ${token}`,
@@ -104,16 +114,28 @@ export const getViews = async (
     const data =
       await response.json() as ViewsResponse
 
-    if (!token) {
-      setCache(
-        cacheKey,
-        data,
-        VIEWS_CACHE_TTL,
-      )
-    }
+    setCache(
+      cacheKey,
+      data,
+      VIEWS_CACHE_TTL,
+    )
     return data
 
   } catch (error) {
+    if (
+      error instanceof OfflineError ||
+      error instanceof TypeError
+    ) {
+      const staleViews =
+        getStaleCache<ViewsResponse>(
+          cacheKey,
+        )
+
+      if (staleViews) {
+        return staleViews
+      }
+    }
+
     if (error instanceof Error) {
       throw error
     }
@@ -129,8 +151,25 @@ export const getViewById = async (
   viewId: string,
   token?: string,
 ): Promise<PoliticalView> => {
+  const cacheScope =
+    token ? 'auth' : 'public'
+
+  const cacheKey =
+    `${VIEW_CACHE_PREFIX}${cacheScope}:${viewId}`
+
+  // Online, solo reutilizamos caché fresca
+  // para consultas públicas.
+  if (!token) {
+    const cachedView =
+      getCache<PoliticalView>(cacheKey)
+
+    if (cachedView) {
+      return cachedView
+    }
+  }
+
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/api/views/${viewId}`,
       {
         headers: token
@@ -154,15 +193,31 @@ export const getViewById = async (
     }
 
     const data: {
-    view: PoliticalView
-  } = await response.json()
+      view: PoliticalView
+    } = await response.json()
 
-  return data.view
+    // Guardamos también respuestas autenticadas
+    // para poder usarlas como respaldo offline.
+    setCache(
+      cacheKey,
+      data.view,
+      VIEWS_CACHE_TTL,
+    )
+
+    return data.view
   } catch (error) {
-    if (error instanceof TypeError) {
-      throw new Error(
-        'No fue posible conectar con el servidor.',
-      )
+    if (
+      error instanceof OfflineError ||
+      error instanceof TypeError
+    ) {
+      const staleView =
+        getStaleCache<PoliticalView>(
+          cacheKey,
+        )
+
+      if (staleView) {
+        return staleView
+      }
     }
 
     if (error instanceof Error) {
@@ -193,7 +248,7 @@ export const reactToViewSide = async (
       : 'dislike'
 
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/api/views/${viewId}/sides/${sidePath}/${reactionPath}`,
       {
         method: 'POST',
@@ -225,6 +280,7 @@ export const reactToViewSide = async (
       await response.json() as ViewReactionResponse
 
     removeCacheByPrefix(VIEWS_CACHE_PREFIX)
+    removeCacheByPrefix(VIEW_CACHE_PREFIX)
 
     return data
   } catch (error) {
@@ -251,7 +307,7 @@ export const unpublishViewById = async (
   token: string,
 ): Promise<PoliticalView> => {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/api/views/${viewId}/unpublish`,
       {
         method: 'PATCH',
@@ -288,6 +344,7 @@ export const unpublishViewById = async (
     const data = await response.json()
 
     removeCacheByPrefix(VIEWS_CACHE_PREFIX)
+    removeCacheByPrefix(VIEW_CACHE_PREFIX)
 
     // La API puede devolver { view: {...} }
     return data.view ?? data
