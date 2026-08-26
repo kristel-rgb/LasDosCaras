@@ -4,6 +4,10 @@ import type {
   AdminUsersResponse,
 } from '@/models/adminUser'
 
+import {
+  apiFetch,
+} from '@/utils/network'
+
 const API_URL = import.meta.env.VITE_API_URL
 
 interface GetAdminUsersParams {
@@ -26,7 +30,7 @@ export const getAdminUsers = async (
   query.set('page', String(params.page ?? 1))
   query.set('limit', String(params.limit ?? 20))
 
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/api/admin/users?${query.toString()}`,
     {
       headers: {
@@ -49,7 +53,7 @@ export const banAdminUser = async (
   userId: string,
   token: string,
 ): Promise<AdminUser> => {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/api/admin/users/${userId}/ban`,
     {
       method: 'PATCH',
@@ -76,7 +80,7 @@ export const unbanAdminUser = async (
   userId: string,
   token: string,
 ): Promise<AdminUser> => {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/api/admin/users/${userId}/unban`,
     {
       method: 'PATCH',

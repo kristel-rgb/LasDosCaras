@@ -1,3 +1,7 @@
+import {
+  apiFetch,
+} from '@/utils/network'
+
 // IDs de publicaciones favoritas del usuario
 export interface FavoritesResponse {
   favorites: string[]
@@ -18,7 +22,7 @@ export const getMyFavoriteIds = async (
   token: string,
 ): Promise<string[]> => {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/api/users/me/favorites`,
       {
         headers: {
@@ -66,7 +70,7 @@ export const removeProfileFavorite = async (
   token: string,
 ): Promise<void> => {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/api/views/${viewId}/favorite`,
       {
         method: 'DELETE',
@@ -128,6 +132,34 @@ export const getLocalHistory = (): HistoryEntry[] => {
       : []
   } catch {
     return []
+  }
+}
+
+export const saveHistoryEntry = (
+  entry: Omit<HistoryEntry, 'fechaVista'>,
+): void => {
+  try {
+    const history = getLocalHistory()
+
+    const filteredHistory =
+      history.filter(
+        (item) => item.id !== entry.id,
+      )
+
+    filteredHistory.unshift({
+      ...entry,
+      fechaVista: new Date().toISOString(),
+    })
+
+    localStorage.setItem(
+      'lasdoscaras_history',
+      JSON.stringify(
+        filteredHistory.slice(0, 20),
+      ),
+    )
+  } catch {
+    // El historial no debe impedir
+    // cargar una publicación.
   }
 }
 

@@ -164,12 +164,12 @@ const toastStore = useToastStore()
 }
 
 .toast-info {
-  border-left: 4px solid #7c3aed;
+  border-left: 4px solid #2563eb;
 }
 
 .toast-info .toast-icon {
-  background: #ede9fe;
-  color: #6d28d9;
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
 /* Animación */

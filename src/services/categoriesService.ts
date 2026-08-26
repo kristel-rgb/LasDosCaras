@@ -4,8 +4,14 @@ import type {
 
 import {
   getCache,
+  getStaleCache,
   setCache,
 } from '@/utils/cache'
+
+import {
+  apiFetch,
+  OfflineError,
+} from '@/utils/network'
 
 // URL base del API obtenida desde las variables de entorno
 const API_URL = import.meta.env.VITE_API_URL
@@ -14,7 +20,7 @@ const API_URL = import.meta.env.VITE_API_URL
 const CATEGORIES_CACHE_KEY = 'categories'
 
 const CATEGORIES_CACHE_TTL =
-  5 * 60 * 1000 // 5 minutos
+  60 * 60 * 1000 // 1 hora
 
 // Obtiene todas las categorías disponibles
 export const getCategories =
@@ -31,7 +37,7 @@ export const getCategories =
     }
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${API_URL}/api/categories`,
       )
 
@@ -53,6 +59,21 @@ export const getCategories =
 
       return data
     } catch (error) {
+      const staleCategories =
+        getStaleCache<CategoriesResponse>(
+          CATEGORIES_CACHE_KEY,
+        )
+
+      if (
+        staleCategories &&
+        (
+          error instanceof OfflineError ||
+          error instanceof TypeError
+        )
+      ) {
+        return staleCategories
+      }
+
       if (error instanceof Error) {
         throw error
       }

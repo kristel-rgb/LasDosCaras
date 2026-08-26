@@ -1,7 +1,8 @@
-const CACHE_PREFIX = 'lasdoscaras_cache:'
+const CACHE_PREFIX = 'lasdoscaras_'
 
 interface CacheEntry<T> {
   value: T
+  timestamp: number
   expiresAt: number
 }
 
@@ -15,9 +16,12 @@ export const setCache = <T>(
     return
   }
 
+  const timestamp = Date.now()
+
   const entry: CacheEntry<T> = {
     value,
-    expiresAt: Date.now() + ttlMs,
+    timestamp,
+    expiresAt: timestamp + ttlMs,
   }
 
   try {
@@ -51,6 +55,7 @@ export const getCache = <T>(
 
     if (
       !entry ||
+      typeof entry.timestamp !== 'number' ||
       typeof entry.expiresAt !== 'number'
     ) {
       localStorage.removeItem(storageKey)
@@ -59,7 +64,6 @@ export const getCache = <T>(
 
     // TTL vencido
     if (Date.now() >= entry.expiresAt) {
-      localStorage.removeItem(storageKey)
       return null
     }
 
@@ -69,6 +73,42 @@ export const getCache = <T>(
     // una nueva consulta al API.
     localStorage.removeItem(storageKey)
 
+    return null
+  }
+}
+
+// Obtiene un valor aunque su TTL haya vencido.
+// Se utiliza solamente como respaldo cuando
+// no es posible consultar el API.
+export const getStaleCache = <T>(
+  key: string,
+): T | null => {
+  const storageKey =
+    `${CACHE_PREFIX}${key}`
+
+  try {
+    const stored =
+      localStorage.getItem(storageKey)
+
+    if (!stored) {
+      return null
+    }
+
+    const entry =
+      JSON.parse(stored) as CacheEntry<T>
+
+    if (
+      !entry ||
+      typeof entry.timestamp !== 'number' ||
+      typeof entry.expiresAt !== 'number'
+    ) {
+      localStorage.removeItem(storageKey)
+      return null
+    }
+
+    return entry.value
+  } catch {
+    localStorage.removeItem(storageKey)
     return null
   }
 }

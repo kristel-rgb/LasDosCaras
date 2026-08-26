@@ -4,6 +4,10 @@ import type {
   RegisterResponse,
 } from '@/models/register'
 
+import {
+  apiFetch,
+} from '@/utils/network'
+
 // URL base del API obtenida desde las variables de entorno
 const API_URL = import.meta.env.VITE_API_URL
 
@@ -12,7 +16,7 @@ export const registerUser = async (
   registerData: RegisterData,
 ): Promise<RegisterResponse> => {
   try {
-    const response = await fetch(`${API_URL}/api/auth/register`, {
+    const response = await apiFetch(`${API_URL}/api/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -53,7 +57,7 @@ export const activateAccount = async (
   activationToken: string,
 ): Promise<ActivateResponse> => {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_URL}/api/auth/activate/${encodeURIComponent(activationToken)}`,
       {
         method: 'GET',
