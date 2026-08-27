@@ -273,9 +273,14 @@ watch(
 </template>
 
 <style scoped>
+/* =========================
+   MOBILE FIRST
+   Base: móvil
+   ========================= */
+
 .search-page {
   min-height: calc(100vh - 72px);
-  padding: 50px 24px 70px;
+  padding: 32px 16px 50px;
   background: #f7f7fb;
   font-family:
     Inter,
@@ -288,9 +293,13 @@ watch(
 
 .search-container {
   width: 100%;
-  max-width: 1050px;
+  max-width: 100%;
   margin: 0 auto;
 }
+
+/* =========================
+   Encabezado
+   ========================= */
 
 .search-header {
   margin-bottom: 25px;
@@ -300,7 +309,7 @@ watch(
   display: inline-block;
   margin-bottom: 9px;
   color: #6d28d9;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 900;
   letter-spacing: 2px;
 }
@@ -308,22 +317,29 @@ watch(
 .search-header h1 {
   margin: 0 0 8px;
   color: #18181b;
-  font-size: 36px;
+  font-size: 28px;
+  line-height: 1.15;
   letter-spacing: -1.2px;
 }
 
 .search-header p {
   margin: 0;
   color: #71717a;
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 .search-header strong {
   color: #3f3f46;
 }
 
+/* =========================
+   Formulario de búsqueda
+   ========================= */
+
 .search-form {
   display: flex;
+  flex-direction: column;
   gap: 10px;
   margin-bottom: 25px;
   padding: 18px;
@@ -334,16 +350,16 @@ watch(
 
 .search-form input {
   box-sizing: border-box;
+  width: 100%;
   min-width: 0;
-  flex: 1;
-  padding: 11px 14px;
+  padding: 12px 14px;
   border: 1px solid #e4e4e7;
   border-radius: 9px;
   outline: none;
   background: #fafafa;
   color: #18181b;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .search-form input:focus {
@@ -361,9 +377,13 @@ watch(
   background: #6d28d9;
   color: #ffffff;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   cursor: pointer;
+}
+
+.search-form button {
+  width: 100%;
 }
 
 .search-form button:disabled {
@@ -371,21 +391,33 @@ watch(
   opacity: 0.55;
 }
 
+/* =========================
+   Resumen de resultados
+   ========================= */
+
 .results-summary {
   margin-bottom: 20px;
   color: #71717a;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .results-summary strong {
   color: #27272a;
 }
 
+/* =========================
+   Publicaciones
+   ========================= */
+
 .views-list {
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
+
+/* =========================
+   Estados
+   ========================= */
 
 .state-container {
   display: flex;
@@ -400,13 +432,13 @@ watch(
 
 .state-container strong {
   color: #27272a;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .state-container p {
   max-width: 480px;
   margin: 0;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.6;
 }
 
@@ -429,28 +461,75 @@ watch(
   }
 }
 
-@media (max-width: 700px) {
+/* =========================
+   TABLET
+   ========================= */
+
+@media (min-width: 701px) {
   .search-page {
-    padding: 32px 16px 50px;
+    padding: 45px 24px 60px;
+  }
+
+  .search-container {
+    max-width: 1100px;
   }
 
   .search-header h1 {
-    font-size: 28px;
+    font-size: 34px;
   }
 
   .search-form {
-    flex-direction: column;
+    flex-direction: row;
+  }
+
+  .search-form input {
+    flex: 1;
   }
 
   .search-form button {
-    width: 100%;
+    width: auto;
+    flex-shrink: 0;
   }
 }
 
-/* Tema oscuro */
+/* =========================
+   ESCRITORIO
+   ========================= */
+
+@media (min-width: 1200px) {
+  .search-page {
+    padding: 50px 32px 70px;
+  }
+
+  .search-container {
+    max-width: 1450px;
+  }
+
+  .search-header h1 {
+    font-size: 36px;
+  }
+}
+
+/* =========================
+   PANTALLAS GRANDES
+   ========================= */
+
+@media (min-width: 1600px) {
+  .search-container {
+    max-width: 1500px;
+  }
+}
+
+/* =========================
+   Tema oscuro
+   ========================= */
 
 :global(html[data-theme='dark'] .search-page) {
   background: #0f1020;
+}
+
+:global(html[data-theme='dark'] .search-label) {
+  color: #a78bfa;
 }
 
 :global(html[data-theme='dark'] .search-header h1),

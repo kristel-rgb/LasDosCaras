@@ -641,6 +641,11 @@ const handleActivation = async (): Promise<void> => {
 </template>
 
 <style scoped>
+/* =========================
+   MOBILE FIRST
+   Base: móvil
+   ========================= */
+
 .login-button-link {
   margin-top: 20px;
   text-decoration: none;
@@ -648,24 +653,13 @@ const handleActivation = async (): Promise<void> => {
 
 .register-page {
   position: relative;
-  min-height: 100vh;
   display: flex;
+  min-height: 100vh;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding: 30px;
-  background:
-    radial-gradient(
-      circle at top left,
-      #312e81 0%,
-      transparent 35%
-    ),
-    radial-gradient(
-      circle at bottom right,
-      #581c87 0%,
-      transparent 35%
-    ),
-    #0f1020;
+  padding: 0;
+  background: #ffffff;
   font-family:
     Inter,
     system-ui,
@@ -675,6 +669,10 @@ const handleActivation = async (): Promise<void> => {
     sans-serif;
 }
 
+/* =========================
+   Formas decorativas
+   ========================= */
+
 .background-shape {
   position: absolute;
   border-radius: 50%;
@@ -683,58 +681,67 @@ const handleActivation = async (): Promise<void> => {
 }
 
 .shape-one {
-  width: 350px;
-  height: 350px;
   top: -150px;
   right: -100px;
+  width: 350px;
+  height: 350px;
   background: #8b5cf6;
 }
 
 .shape-two {
-  width: 300px;
-  height: 300px;
   bottom: -150px;
   left: -100px;
+  width: 300px;
+  height: 300px;
   background: #4f46e5;
 }
+
+/* =========================
+   Contenedor
+   ========================= */
 
 .register-container {
   position: relative;
   z-index: 1;
-  width: 100%;
-  max-width: 1000px;
-  min-height: 680px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  grid-template-columns: 1fr;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 24px;
+  border: none;
+  border-radius: 0;
   background: #ffffff;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+  box-shadow: none;
 }
+
+/* =========================
+   Sección de marca
+   Oculta en móvil
+   ========================= */
 
 .brand-section {
   position: relative;
-  display: flex;
+  display: none;
   align-items: center;
-  padding: 60px;
   overflow: hidden;
-  color: #ffffff;
+  padding: 60px;
   background:
     linear-gradient(
       145deg,
       rgba(79, 70, 229, 0.96),
       rgba(88, 28, 135, 0.97)
     );
+  color: #ffffff;
 }
 
 .brand-section::after {
   content: '';
   position: absolute;
-  width: 280px;
-  height: 280px;
   right: -120px;
   bottom: -80px;
+  width: 280px;
+  height: 280px;
   border: 50px solid rgba(255, 255, 255, 0.07);
   border-radius: 50%;
 }
@@ -787,11 +794,15 @@ const handleActivation = async (): Promise<void> => {
   font-size: 14px;
 }
 
+/* =========================
+   Formulario
+   ========================= */
+
 .form-section {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 45px 55px;
+  padding: 35px 24px;
   background: #ffffff;
 }
 
@@ -802,7 +813,15 @@ const handleActivation = async (): Promise<void> => {
 }
 
 .mobile-logo {
-  display: none;
+  display: block;
+  margin-bottom: 30px;
+  color: #4f46e5;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.mobile-logo span {
+  margin-right: 6px;
 }
 
 .register-header {
@@ -813,7 +832,7 @@ const handleActivation = async (): Promise<void> => {
   display: inline-block;
   margin-bottom: 12px;
   color: #6d28d9;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 2px;
 }
@@ -822,7 +841,8 @@ const handleActivation = async (): Promise<void> => {
 .status-content h2 {
   margin: 0 0 10px;
   color: #171717;
-  font-size: 34px;
+  font-size: 30px;
+  line-height: 1.15;
   letter-spacing: -1px;
 }
 
@@ -830,9 +850,13 @@ const handleActivation = async (): Promise<void> => {
 .status-content > p {
   margin: 0;
   color: #737373;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.6;
 }
+
+/* =========================
+   Formulario y campos
+   ========================= */
 
 .register-form {
   display: flex;
@@ -874,7 +898,8 @@ const handleActivation = async (): Promise<void> => {
   outline: none;
   background: #fafafa;
   color: #171717;
-  font-size: 14px;
+  font-family: inherit;
+  font-size: 15px;
   transition: 0.2s ease;
 }
 
@@ -885,7 +910,8 @@ const handleActivation = async (): Promise<void> => {
 .input-container input:focus {
   border-color: #7c3aed;
   background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+  box-shadow:
+    0 0 0 3px rgba(124, 58, 237, 0.1);
 }
 
 .input-container input[aria-invalid='true'] {
@@ -900,7 +926,8 @@ const handleActivation = async (): Promise<void> => {
   border: none;
   background: transparent;
   color: #6d28d9;
-  font-size: 11px;
+  font-family: inherit;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   transform: translateY(-50%);
@@ -916,10 +943,14 @@ const handleActivation = async (): Promise<void> => {
   outline-offset: 2px;
 }
 
+/* =========================
+   Validaciones
+   ========================= */
+
 .field-error {
   margin: 0;
   color: #b91c1c;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .password-strength {
@@ -956,15 +987,15 @@ const handleActivation = async (): Promise<void> => {
 
 .password-strength span {
   color: #737373;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .password-requirements {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 5px 10px;
   color: #737373;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .password-requirements span {
@@ -975,6 +1006,10 @@ const handleActivation = async (): Promise<void> => {
   color: #15803d;
   font-weight: 600;
 }
+
+/* =========================
+   Error general
+   ========================= */
 
 .error-message {
   display: flex;
@@ -1004,7 +1039,12 @@ const handleActivation = async (): Promise<void> => {
 .error-message p {
   margin: 0;
   font-size: 13px;
+  line-height: 1.5;
 }
+
+/* =========================
+   Botón de registro
+   ========================= */
 
 .register-button {
   display: flex;
@@ -1017,8 +1057,13 @@ const handleActivation = async (): Promise<void> => {
   border: none;
   border-radius: 10px;
   background:
-    linear-gradient(135deg, #4f46e5, #7c3aed);
+    linear-gradient(
+      135deg,
+      #4f46e5,
+      #7c3aed
+    );
   color: #ffffff;
+  font-family: inherit;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
@@ -1042,6 +1087,10 @@ const handleActivation = async (): Promise<void> => {
   font-size: 19px;
 }
 
+/* =========================
+   Login
+   ========================= */
+
 .login-section {
   display: flex;
   align-items: center;
@@ -1050,16 +1099,16 @@ const handleActivation = async (): Promise<void> => {
 }
 
 .login-section > span {
-  flex: 1;
   height: 1px;
+  flex: 1;
   background: #e5e5e5;
 }
 
 .login-section p {
   margin: 0;
   color: #737373;
-  font-size: 12px;
-  white-space: nowrap;
+  font-size: 13px;
+  text-align: center;
 }
 
 .login-text {
@@ -1067,6 +1116,10 @@ const handleActivation = async (): Promise<void> => {
   font-weight: 700;
   text-decoration: none;
 }
+
+/* =========================
+   Estado después del registro
+   ========================= */
 
 .status-content {
   text-align: center;
@@ -1081,7 +1134,11 @@ const handleActivation = async (): Promise<void> => {
   margin: 0 auto 25px;
   border-radius: 50%;
   background:
-    linear-gradient(135deg, #4f46e5, #7c3aed);
+    linear-gradient(
+      135deg,
+      #4f46e5,
+      #7c3aed
+    );
   color: #ffffff;
   font-size: 30px;
   font-weight: 700;
@@ -1102,68 +1159,110 @@ const handleActivation = async (): Promise<void> => {
   font-weight: 600;
 }
 
-@media (max-width: 800px) {
+/* =========================
+   TABLET
+   ========================= */
+
+@media (min-width: 481px) {
   .register-page {
     padding: 20px;
+    background:
+      radial-gradient(
+        circle at top left,
+        #312e81 0%,
+        transparent 35%
+      ),
+      radial-gradient(
+        circle at bottom right,
+        #581c87 0%,
+        transparent 35%
+      ),
+      #0f1020;
   }
 
   .register-container {
     max-width: 500px;
     min-height: auto;
-    grid-template-columns: 1fr;
-  }
-
-  .brand-section {
-    display: none;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 24px;
+    box-shadow:
+      0 30px 80px rgba(0, 0, 0, 0.35);
   }
 
   .form-section {
     padding: 45px 35px;
   }
 
-  .mobile-logo {
-    display: block;
-    margin-bottom: 30px;
-    color: #4f46e5;
-    font-size: 20px;
-    font-weight: 800;
+  .register-header h2,
+  .status-content h2 {
+    font-size: 32px;
   }
 
-  .mobile-logo span {
-    margin-right: 6px;
+  .password-requirements {
+    grid-template-columns: 1fr 1fr;
   }
 }
 
-@media (max-width: 480px) {
+/* =========================
+   ESCRITORIO
+   ========================= */
+
+@media (min-width: 801px) {
   .register-page {
-    padding: 0;
-    background: #ffffff;
+    padding: 30px;
   }
 
   .register-container {
-    min-height: 100vh;
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
+    max-width: 1100px;
+    min-height: 680px;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .brand-section {
+    display: flex;
   }
 
   .form-section {
-    padding: 35px 24px;
+    padding: 45px 55px;
+  }
+
+  .form-content,
+  .status-content {
+    max-width: 400px;
+  }
+
+  .mobile-logo {
+    display: none;
   }
 
   .register-header h2,
   .status-content h2 {
-    font-size: 30px;
+    font-size: 34px;
+  }
+}
+
+/* =========================
+   PANTALLAS GRANDES
+   ========================= */
+
+@media (min-width: 1400px) {
+  .register-container {
+    max-width: 1200px;
   }
 
-  .password-requirements {
-    grid-template-columns: 1fr;
+  .form-content,
+  .status-content {
+    max-width: 420px;
   }
 }
 
 /* =========================
    TEMA OSCURO
    ========================= */
+
+:global(html[data-theme='dark'] .register-page) {
+  background: #0f1020;
+}
 
 :global(html[data-theme='dark'] .register-container) {
   border-color: #343447;
@@ -1305,19 +1404,5 @@ const handleActivation = async (): Promise<void> => {
   border-color: #343447;
   transition:
     background-color 9999s ease-out 0s;
-}
-
-/* =========================
-   MÓVIL EN TEMA OSCURO
-   ========================= */
-
-@media (max-width: 480px) {
-  :global(html[data-theme='dark'] .register-page) {
-    background: #0f1020;
-  }
-
-  :global(html[data-theme='dark'] .register-container) {
-    background: #171728;
-  }
 }
 </style>

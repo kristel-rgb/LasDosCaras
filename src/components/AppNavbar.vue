@@ -1477,6 +1477,24 @@ html[data-theme='dark'] body {
   }
 }
 
+/* Escritorio grande */
+
+@media (min-width: 1200px) {
+  .navbar-container {
+    max-width: 1450px;
+    padding-right: 32px;
+    padding-left: 32px;
+  }
+}
+
+/* Pantallas grandes */
+
+@media (min-width: 1600px) {
+  .navbar-container {
+    max-width: 1500px;
+  }
+}
+
 /* Tema oscuro */
 
 :global(html[data-theme='dark'] .navbar) {

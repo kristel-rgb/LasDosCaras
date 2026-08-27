@@ -636,22 +636,33 @@ onMounted(loadCategories)
 </template>
 
 <style scoped>
+/* =========================
+   MOBILE FIRST
+   Base: móvil
+   ========================= */
+
 .admin-page {
   min-height: 100vh;
-  padding: 40px 24px 70px;
+  padding: 28px 16px 50px;
   background: #f7f7fb;
 }
 
 .admin-container {
-  width: min(1180px, 100%);
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
 }
 
+/* =========================
+   ENCABEZADO
+   ========================= */
+
 .admin-header {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
-  gap: 24px;
+  flex-direction: column;
+  gap: 18px;
   margin-bottom: 22px;
 }
 
@@ -659,7 +670,7 @@ onMounted(loadCategories)
   display: block;
   margin-bottom: 7px;
   color: #7c3aed;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.12em;
 }
@@ -672,37 +683,45 @@ onMounted(loadCategories)
 
 .admin-header h1 {
   font-size: 30px;
+  line-height: 1.2;
 }
 
 .admin-header p {
   margin: 8px 0 0;
   color: #71717a;
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 .create-button {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 7px;
+  width: 100%;
   padding: 11px 16px;
   border: 1px solid #7c3aed;
   border-radius: 9px;
   background: #7c3aed;
   color: #ffffff;
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
   cursor: pointer;
 }
 
 .create-button span {
-  font-size: 18px;
+  font-size: 19px;
   line-height: 1;
 }
 
+/* =========================
+   ESTADÍSTICAS
+   ========================= */
+
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr;
   gap: 14px;
   margin-bottom: 18px;
 }
@@ -718,38 +737,49 @@ onMounted(loadCategories)
   display: block;
   margin-bottom: 3px;
   color: #7c3aed;
-  font-size: 24px;
+  font-size: 26px;
 }
 
 .stat-card span {
   color: #71717a;
-  font-size: 12px;
+  font-size: 13px;
 }
 
+/* =========================
+   PANEL
+   ========================= */
+
 .admin-panel {
-  padding: 24px;
+  padding: 16px;
   border: 1px solid #e4e4e7;
   border-radius: 18px;
   background: #ffffff;
 }
 
+/* =========================
+   FILTROS
+   ========================= */
+
 .filter-tabs {
   display: flex;
   gap: 7px;
   margin-bottom: 18px;
+  overflow-x: auto;
+  padding-bottom: 2px;
 }
 
 .filter-tabs button {
   display: flex;
   align-items: center;
   gap: 7px;
+  flex-shrink: 0;
   padding: 8px 12px;
   border: 1px solid #e4e4e7;
   border-radius: 9px;
   background: #ffffff;
   color: #71717a;
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition:
@@ -759,12 +789,12 @@ onMounted(loadCategories)
 }
 
 .filter-tabs button span {
-  min-width: 19px;
-  padding: 2px 5px;
+  min-width: 21px;
+  padding: 2px 6px;
   border-radius: 999px;
   background: #f4f4f5;
   color: #71717a;
-  font-size: 10px;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -784,21 +814,28 @@ onMounted(loadCategories)
   color: #6d28d9;
 }
 
+/* =========================
+   BÚSQUEDA
+   ========================= */
+
 .toolbar {
   display: flex;
+  flex-direction: column;
   gap: 10px;
   margin-bottom: 22px;
 }
 
 .toolbar input {
+  box-sizing: border-box;
+  width: 100%;
   min-width: 0;
-  flex: 1;
-  padding: 11px 13px;
+  padding: 12px 13px;
   border: 1px solid #d4d4d8;
   border-radius: 9px;
   background: #ffffff;
   color: #18181b;
   font: inherit;
+  font-size: 14px;
 }
 
 .toolbar input:focus,
@@ -814,7 +851,7 @@ onMounted(loadCategories)
   padding: 10px 14px;
   border-radius: 8px;
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -831,16 +868,20 @@ onMounted(loadCategories)
   color: #52525b;
 }
 
+/* =========================
+   TABLA
+   ========================= */
+
 .table-wrapper {
+  width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 table {
   width: 100%;
+  min-width: 780px;
   border-collapse: collapse;
-}
-
-table {
   table-layout: fixed;
 }
 
@@ -874,7 +915,7 @@ th {
   padding: 12px 10px;
   border-bottom: 1px solid #e4e4e7;
   color: #71717a;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.05em;
   text-align: left;
@@ -885,7 +926,7 @@ td {
   padding: 15px 10px;
   border-bottom: 1px solid #f1f1f4;
   color: #52525b;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .category-cell {
@@ -897,14 +938,15 @@ td {
 
 .category-icon {
   display: flex;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   border-radius: 9px;
   background: #ede9fe;
   color: #6d28d9;
+  font-size: 14px;
   font-weight: 900;
 }
 
@@ -914,7 +956,7 @@ td {
   border-radius: 999px;
   background: #dcfce7;
   color: #166534;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -955,32 +997,47 @@ td {
 
 .deleted-label {
   color: #a1a1aa;
-  font-size: 12px;
+  font-size: 13px;
 }
 
+.publication-count {
+  display: inline-flex;
+  min-width: 30px;
+  justify-content: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #f4f4f5;
+  color: #52525b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* =========================
+   ERRORES Y ESTADOS
+   ========================= */
+
 .form-error {
+  margin: 9px 0 0;
   color: #991b1b;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .error-message {
   background: #fef2f2;
 }
 
-.form-error {
-  margin: 9px 0 0;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
 .state-container {
-  padding: 55px 20px;
+  padding: 45px 18px;
   color: #71717a;
+  font-size: 14px;
   text-align: center;
 }
 
 .state-container strong {
   color: #27272a;
+  font-size: 17px;
 }
 
 .loader {
@@ -993,23 +1050,15 @@ td {
   animation: spin 0.8s linear infinite;
 }
 
-.publication-count {
-  display: inline-flex;
-  min-width: 28px;
-  justify-content: center;
-  padding: 5px 9px;
-  border-radius: 999px;
-  background: #f4f4f5;
-  color: #52525b;
-  font-size: 11px;
-  font-weight: 700;
-}
-
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
+
+/* =========================
+   MODAL
+   ========================= */
 
 .modal-backdrop {
   position: fixed;
@@ -1018,17 +1067,20 @@ td {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 16px;
   background: rgba(15, 16, 32, 0.48);
 }
 
 .modal {
-  width: min(440px, 100%);
-  padding: 22px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 440px;
+  padding: 20px;
   border: 1px solid #e4e4e7;
   border-radius: 16px;
   background: #ffffff;
-  box-shadow: 0 22px 60px rgba(15, 16, 32, 0.2);
+  box-shadow:
+    0 22px 60px rgba(15, 16, 32, 0.2);
 }
 
 .modal-header {
@@ -1040,7 +1092,7 @@ td {
 }
 
 .modal-header h2 {
-  font-size: 21px;
+  font-size: 22px;
 }
 
 .close-button {
@@ -1055,205 +1107,198 @@ td {
   display: block;
   margin-bottom: 7px;
   color: #3f3f46;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
 .modal input {
   box-sizing: border-box;
   width: 100%;
-  padding: 11px 13px;
+  padding: 12px 13px;
   border: 1px solid #d4d4d8;
   border-radius: 9px;
   background: #ffffff;
   color: #18181b;
   font: inherit;
+  font-size: 14px;
 }
 
 .modal-actions {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column-reverse;
   gap: 9px;
   margin-top: 22px;
 }
 
-@media (max-width: 700px) {
+.modal-actions button {
+  width: 100%;
+}
+
+/* =========================
+   TABLET
+   ========================= */
+
+@media (min-width: 701px) {
   .admin-page {
-    padding: 28px 16px 50px;
+    padding: 40px 24px 70px;
+  }
+
+  .admin-container {
+    max-width: 1180px;
   }
 
   .admin-header {
-    align-items: stretch;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
+    gap: 24px;
+  }
+
+  .admin-header h1 {
+    font-size: 32px;
   }
 
   .create-button {
-    justify-content: center;
+    width: auto;
   }
 
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns:
+      repeat(3, 1fr);
   }
 
   .admin-panel {
-    padding: 16px;
+    padding: 24px;
+  }
+
+  .toolbar {
+    flex-direction: row;
+  }
+
+  .toolbar input {
+    flex: 1;
+  }
+
+  .modal {
+    padding: 22px;
+  }
+
+  .modal-actions {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+
+  .modal-actions button {
+    width: auto;
   }
 }
 
-/* Tema oscuro */
+/* =========================
+   ESCRITORIO
+   ========================= */
+
+@media (min-width: 1200px) {
+  .admin-page {
+    padding: 50px 32px 80px;
+  }
+
+  .admin-container {
+    max-width: 1450px;
+  }
+}
+
+/* =========================
+   PANTALLAS GRANDES
+   ========================= */
+
+@media (min-width: 1600px) {
+  .admin-container {
+    max-width: 1500px;
+  }
+}
+
+/* =========================
+   TEMA OSCURO
+   ========================= */
 
 :global(html[data-theme='dark'] .admin-page) {
   background: #0f1020;
 }
 
-:global(
-  html[data-theme='dark']
-  .admin-header h1
-),
-:global(
-  html[data-theme='dark']
-  .modal-header h2
-),
-:global(
-  html[data-theme='dark']
-  .category-cell
-),
-:global(
-  html[data-theme='dark']
-  .state-container strong
-) {
+:global(html[data-theme='dark'] .admin-header h1),
+:global(html[data-theme='dark'] .modal-header h2),
+:global(html[data-theme='dark'] .category-cell),
+:global(html[data-theme='dark'] .state-container strong) {
   color: #f4f4f5;
 }
 
-:global(
-  html[data-theme='dark']
-  .admin-header p
-),
-:global(
-  html[data-theme='dark']
-  .stat-card span
-),
-:global(
-  html[data-theme='dark']
-  td
-),
-:global(
-  html[data-theme='dark']
-  th
-) {
+:global(html[data-theme='dark'] .admin-header p),
+:global(html[data-theme='dark'] .stat-card span),
+:global(html[data-theme='dark'] td),
+:global(html[data-theme='dark'] th) {
   color: #a1a1aa;
 }
 
-:global(
-  html[data-theme='dark']
-  .stat-card
-),
-:global(
-  html[data-theme='dark']
-  .admin-panel
-),
-:global(
-  html[data-theme='dark']
-  .modal
-) {
+:global(html[data-theme='dark'] .stat-card),
+:global(html[data-theme='dark'] .admin-panel),
+:global(html[data-theme='dark'] .modal) {
   border-color: #343447;
   background: #1b1b2d;
 }
 
-:global(
-  html[data-theme='dark']
-  .toolbar input
-),
-:global(
-  html[data-theme='dark']
-  .modal input
-) {
+:global(html[data-theme='dark'] .toolbar input),
+:global(html[data-theme='dark'] .modal input) {
   border-color: #343447;
   background: #151526;
   color: #f4f4f5;
 }
 
-:global(
-  html[data-theme='dark']
-  th
-) {
+:global(html[data-theme='dark'] th) {
   border-bottom-color: #343447;
 }
 
-:global(
-  html[data-theme='dark']
-  td
-) {
+:global(html[data-theme='dark'] td) {
   border-bottom-color: #29293d;
 }
 
-:global(
-  html[data-theme='dark']
-  .secondary-button
-) {
+:global(html[data-theme='dark'] .secondary-button) {
   border-color: #343447;
   background: #252538;
   color: #d4d4d8;
 }
 
-:global(
-  html[data-theme='dark']
-  .category-icon
-) {
+:global(html[data-theme='dark'] .category-icon) {
   background: #302b4d;
   color: #c4b5fd;
 }
 
-:global(
-  html[data-theme='dark']
-  .modal label
-) {
+:global(html[data-theme='dark'] .modal label) {
   color: #d4d4d8;
 }
 
-:global(
-  html[data-theme='dark']
-  .filter-tabs button
-) {
+:global(html[data-theme='dark'] .filter-tabs button) {
   border-color: #343447;
   background: #1b1b2d;
   color: #a1a1aa;
 }
 
-:global(
-  html[data-theme='dark']
-  .filter-tabs button span
-) {
+:global(html[data-theme='dark'] .filter-tabs button span) {
   background: #29293d;
   color: #a1a1aa;
 }
 
-:global(
-  html[data-theme='dark']
-  .filter-tabs button:hover
-),
-
-:global(
-  html[data-theme='dark']
-  .filter-tabs button.active
-) {
+:global(html[data-theme='dark'] .filter-tabs button:hover),
+:global(html[data-theme='dark'] .filter-tabs button.active) {
   border-color: #7c3aed;
   background: #29243f;
   color: #c4b5fd;
 }
 
-:global(
-  html[data-theme='dark']
-  .filter-tabs button.active span
-) {
+:global(html[data-theme='dark'] .filter-tabs button.active span) {
   background: #302b4d;
   color: #c4b5fd;
 }
 
-:global(
-  html[data-theme='dark']
-  .publication-count
-) {
+:global(html[data-theme='dark'] .publication-count) {
   background: #29293d;
   color: #d4d4d8;
 }

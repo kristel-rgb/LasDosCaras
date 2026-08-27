@@ -406,9 +406,14 @@ watch(
 </template>
 
 <style scoped>
+/* =========================
+   MOBILE FIRST
+   Base: móvil
+   ========================= */
+
 .category-page {
   min-height: calc(100vh - 72px);
-  padding: 45px 24px 60px;
+  padding: 35px 16px;
   background: #f7f7fb;
   font-family:
     Inter,
@@ -421,21 +426,26 @@ watch(
 
 .category-container {
   width: 100%;
-  max-width: 1050px;
+  max-width: 100%;
   margin: 0 auto;
 }
 
+/* =========================
+   Volver
+   ========================= */
+
 .back-button {
   margin-bottom: 28px;
-  padding: 9px 13px;
+  padding: 10px 14px;
   border: 1px solid #e4e4e7;
   border-radius: 9px;
   background: #ffffff;
   color: #52525b;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
+  transition: 0.2s ease;
 }
 
 .back-button:hover {
@@ -443,11 +453,16 @@ watch(
   color: #6d28d9;
 }
 
+/* =========================
+   Encabezado
+   ========================= */
+
 .category-header {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 30px;
+  flex-direction: column;
+  gap: 18px;
   margin-bottom: 28px;
 }
 
@@ -455,7 +470,7 @@ watch(
   display: inline-block;
   margin-bottom: 9px;
   color: #6d28d9;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 900;
   letter-spacing: 2px;
 }
@@ -463,7 +478,8 @@ watch(
 .category-header h1 {
   margin: 0 0 8px;
   color: #18181b;
-  font-size: 38px;
+  font-size: 30px;
+  line-height: 1.15;
   letter-spacing: -1.2px;
 }
 
@@ -471,8 +487,8 @@ watch(
   max-width: 620px;
   margin: 0;
   color: #71717a;
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 16px;
+  line-height: 1.65;
 }
 
 .results {
@@ -482,15 +498,20 @@ watch(
   border-radius: 20px;
   background: #ffffff;
   color: #71717a;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
+/* =========================
+   Controles
+   ========================= */
+
 .category-controls {
   display: flex;
-  align-items: flex-end;
+  align-items: stretch;
   justify-content: space-between;
-  gap: 20px;
+  flex-direction: column;
+  gap: 18px;
   margin-bottom: 25px;
   padding: 18px 20px;
   border: 1px solid #e8e7ef;
@@ -500,46 +521,56 @@ watch(
 
 .control-title {
   color: #52525b;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
 }
 
 .sort-section {
-  width: 170px;
+  width: 100%;
 }
 
 .sort-section label {
   display: block;
   margin-bottom: 8px;
   color: #71717a;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
 }
 
 .sort-section select {
   box-sizing: border-box;
   width: 100%;
-  padding: 9px 11px;
+  padding: 10px 12px;
   border: 1px solid #e4e4e7;
   border-radius: 9px;
   outline: none;
   background: #fafafa;
   color: #52525b;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .sort-section select:focus {
   border-color: #8b5cf6;
+  box-shadow:
+    0 0 0 3px rgba(124, 58, 237, 0.08);
 }
+
+/* =========================
+   Publicaciones
+   ========================= */
 
 .views-list {
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
+
+/* =========================
+   Estados
+   ========================= */
 
 .state-container {
   display: flex;
@@ -548,7 +579,7 @@ watch(
   justify-content: center;
   flex-direction: column;
   gap: 12px;
-  padding: 40px;
+  padding: 30px 20px;
   border: 1px solid #e4e4e7;
   border-radius: 18px;
   background: #ffffff;
@@ -558,13 +589,13 @@ watch(
 
 .state-container strong {
   color: #27272a;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .state-container p {
   max-width: 450px;
   margin: 0;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.6;
 }
 
@@ -583,10 +614,19 @@ watch(
   border-radius: 8px;
   background: #6d28d9;
   color: #ffffff;
-  font-size: 12px;
+  font-family: inherit;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
+
+.error-state button:hover {
+  background: #5b21b6;
+}
+
+/* =========================
+   Cargar más
+   ========================= */
 
 .load-more-container {
   display: flex;
@@ -604,9 +644,10 @@ watch(
   background: #ffffff;
   color: #6d28d9;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   cursor: pointer;
+  transition: 0.2s ease;
 }
 
 .load-more-button:hover:not(:disabled) {
@@ -621,13 +662,13 @@ watch(
 
 .loaded-count {
   color: #a1a1aa;
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .load-more-error {
   margin-top: 18px;
   color: #b91c1c;
-  font-size: 12px;
+  font-size: 14px;
   text-align: center;
 }
 
@@ -637,32 +678,78 @@ watch(
   }
 }
 
-@media (max-width: 700px) {
+/* =========================
+   TABLET
+   ========================= */
+
+@media (min-width: 701px) {
   .category-page {
-    padding: 35px 16px;
+    padding: 45px 24px 60px;
+  }
+
+  .category-container {
+    max-width: 1100px;
   }
 
   .category-header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 18px;
+    align-items: flex-end;
+    flex-direction: row;
+    gap: 30px;
   }
 
   .category-header h1 {
-    font-size: 30px;
+    font-size: 38px;
   }
 
-  .category-controls {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .sort-section {
-    width: 100%;
+  .state-container {
+    padding: 40px;
   }
 }
 
-/* Tema oscuro */
+/* =========================
+   TABLET GRANDE / LAPTOP
+   ========================= */
+
+@media (min-width: 801px) {
+  .category-controls {
+    align-items: flex-end;
+    flex-direction: row;
+    gap: 20px;
+  }
+
+  .sort-section {
+    width: 190px;
+    flex-shrink: 0;
+  }
+}
+
+/* =========================
+   ESCRITORIO
+   ========================= */
+
+@media (min-width: 1200px) {
+  .category-page {
+    padding: 50px 32px 70px;
+  }
+
+  .category-container {
+    max-width: 1450px;
+  }
+}
+
+/* =========================
+   PANTALLAS GRANDES
+   ========================= */
+
+@media (min-width: 1600px) {
+  .category-container {
+    max-width: 1500px;
+  }
+}
+
+/* =========================
+   Tema oscuro
+   ========================= */
 
 :global(html[data-theme='dark'] .category-page) {
   background: #0f1020;
@@ -714,6 +801,12 @@ watch(
   border-color: #343447;
   background: #1b1b2d;
   color: #d4d4d8;
+}
+
+:global(html[data-theme='dark'] .sort-section select:focus) {
+  border-color: #8b5cf6;
+  box-shadow:
+    0 0 0 3px rgba(139, 92, 246, 0.15);
 }
 
 :global(html[data-theme='dark'] .state-container) {

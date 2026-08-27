@@ -60,18 +60,25 @@ const goBack = (): void => {
 </template>
 
 <style scoped>
+/* =========================
+   MOBILE FIRST
+   Base: móvil
+   ========================= */
+
 .error-page {
   display: flex;
   min-height: calc(100vh - 72px);
   align-items: center;
   justify-content: center;
-  padding: 40px 24px;
+  padding: 24px 14px;
   background: #f7f7fb;
 }
 
 .error-card {
-  width: min(560px, 100%);
-  padding: 46px 36px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 560px;
+  padding: 34px 20px;
   border: 1px solid #e4e4e7;
   border-radius: 20px;
   background: #ffffff;
@@ -84,29 +91,30 @@ const goBack = (): void => {
   display: inline-block;
   margin-bottom: 16px;
   color: #7c3aed;
-  font-size: 0.75rem;
+  font-size: 13px;
   font-weight: 900;
   letter-spacing: 0.18em;
 }
 
 .error-icon {
   display: flex;
-  width: 72px;
-  height: 72px;
+  width: 68px;
+  height: 68px;
   align-items: center;
   justify-content: center;
   margin: 0 auto 20px;
   border-radius: 50%;
   background: #ede9fe;
   color: #7c3aed;
-  font-size: 2rem;
+  font-size: 30px;
   font-weight: 900;
 }
 
 .error-card h1 {
   margin: 0 0 12px;
   color: #18181b;
-  font-size: 2rem;
+  font-size: 26px;
+  line-height: 1.2;
   letter-spacing: -0.7px;
 }
 
@@ -114,12 +122,17 @@ const goBack = (): void => {
   max-width: 420px;
   margin: 0 auto;
   color: #71717a;
-  font-size: 0.95rem;
+  font-size: 15px;
   line-height: 1.7;
 }
 
+/* =========================
+   Acciones
+   ========================= */
+
 .error-actions {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   gap: 12px;
   margin-top: 28px;
@@ -127,10 +140,11 @@ const goBack = (): void => {
 
 .primary-button,
 .secondary-button {
+  width: 100%;
   padding: 11px 18px;
   border-radius: 9px;
   font-family: inherit;
-  font-size: 0.8rem;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: 0.2s ease;
@@ -158,7 +172,42 @@ const goBack = (): void => {
   color: #6d28d9;
 }
 
-/* Tema oscuro */
+/* =========================
+   TABLET EN ADELANTE
+   ========================= */
+
+@media (min-width: 521px) {
+  .error-page {
+    padding: 40px 24px;
+  }
+
+  .error-card {
+    padding: 46px 36px;
+  }
+
+  .error-icon {
+    width: 72px;
+    height: 72px;
+    font-size: 32px;
+  }
+
+  .error-card h1 {
+    font-size: 32px;
+  }
+
+  .error-actions {
+    flex-direction: row;
+  }
+
+  .primary-button,
+  .secondary-button {
+    width: auto;
+  }
+}
+
+/* =========================
+   TEMA OSCURO
+   ========================= */
 
 :global(html[data-theme='dark'] .error-page) {
   background: #0f1020;
@@ -196,30 +245,5 @@ const goBack = (): void => {
   border-color: #8b5cf6;
   background: #29243f;
   color: #c4b5fd;
-}
-
-/* Responsive */
-
-@media (max-width: 520px) {
-  .error-page {
-    padding: 24px 14px;
-  }
-
-  .error-card {
-    padding: 34px 20px;
-  }
-
-  .error-card h1 {
-    font-size: 1.6rem;
-  }
-
-  .error-actions {
-    flex-direction: column;
-  }
-
-  .primary-button,
-  .secondary-button {
-    width: 100%;
-  }
 }
 </style>
