@@ -2,6 +2,7 @@
 
 import {
   computed,
+  onBeforeUnmount,
   onMounted,
   reactive,
   ref,
@@ -16,7 +17,7 @@ import type { ViewFormPayload } from '@/models/viewForm'
 
 import { getCategories } from '@/services/categoriesService'
 import {
-  getHashtags,
+  searchHashtags,
   type Hashtag,
 } from '@/services/hashtagsService'
 
@@ -33,6 +34,8 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const toastStore = useToastStore()
+
+const hasUnsavedChanges = ref(false)
 
 const submitting = ref(false)
 const formError = ref('')
@@ -80,6 +83,11 @@ const categoriesLoading = ref(false)
 const categoriesError = ref('')
 const hashtagInput = ref('')
 const availableHashtags = ref<Hashtag[]>([])
+const hashtagSearching = ref(false)
+
+let hashtagSearchTimer:
+  | ReturnType<typeof setTimeout>
+  | undefined
 
 // Estado principal del formulario
 const form = reactive<ViewFormPayload>({
@@ -108,6 +116,16 @@ counterpart: {
 },
   hashtags: [],
 })
+
+watch(
+  form,
+  () => {
+    hasUnsavedChanges.value = true
+  },
+  {
+    deep: true,
+  },
+)
 
 // Guarda automáticamente el formulario como borrador
 watch(
@@ -187,15 +205,68 @@ const loadCategories = async (): Promise<void> => {
   }
 }
 
-const loadHashtags = async (): Promise<void> => {
-  try {
-    const response = await getHashtags()
+// Busca hashtags existentes mientras
+// el usuario escribe.
+const loadHashtagSuggestions =
+  async (
+    query: string,
+  ): Promise<void> => {
+    const normalizedQuery =
+      query
+        .trim()
+        .replace(/^#/, '')
 
-    availableHashtags.value = response.hashtags
-  } catch {
-    availableHashtags.value = []
+    if (!normalizedQuery) {
+      availableHashtags.value = []
+      hashtagSearching.value = false
+      return
+    }
+
+    hashtagSearching.value = true
+
+    try {
+      const response =
+        await searchHashtags(
+          normalizedQuery,
+        )
+
+      availableHashtags.value =
+        response.hashtags.filter(
+          (hashtag) =>
+            !form.hashtags?.includes(
+              hashtag.name,
+            ),
+        )
+    } catch {
+      availableHashtags.value = []
+    } finally {
+      hashtagSearching.value = false
+    }
   }
-}
+
+// Debounce del autocomplete
+watch(
+  hashtagInput,
+  (value) => {
+    if (hashtagSearchTimer) {
+      clearTimeout(
+        hashtagSearchTimer,
+      )
+    }
+
+    if (!value.trim()) {
+      availableHashtags.value = []
+      return
+    }
+
+    hashtagSearchTimer =
+      setTimeout(() => {
+        void loadHashtagSuggestions(
+          value,
+        )
+      }, 300)
+  },
+)
 
 // Agrega una nueva fuente a uno de los lados
 const addSource = (
@@ -244,6 +315,18 @@ const addHashtag = (): void => {
   hashtagInput.value = ''
 }
 
+const handleHashtagKeydown = (
+  event: KeyboardEvent,
+): void => {
+  if (
+    event.key === 'Enter' ||
+    event.key === ','
+  ) {
+    event.preventDefault()
+    addHashtag()
+  }
+}
+
 // Elimina un hashtag
 const removeHashtag = (
   hashtag: string,
@@ -251,6 +334,79 @@ const removeHashtag = (
   form.hashtags = form.hashtags?.filter(
     (item) => item !== hashtag,
   )
+}
+
+// Convierte una URL de YouTube
+// en una URL válida para iframe.
+const getYoutubeEmbedUrl = (
+  value: string,
+): string => {
+  if (!value.trim()) {
+    return ''
+  }
+
+  try {
+    const url = new URL(
+      value.trim(),
+    )
+
+    let videoId = ''
+
+    if (
+      url.hostname === 'youtu.be'
+    ) {
+      videoId =
+        url.pathname
+          .replace('/', '')
+          .trim()
+    }
+
+    if (
+      url.hostname.includes(
+        'youtube.com',
+      )
+    ) {
+      if (
+        url.pathname === '/watch'
+      ) {
+        videoId =
+          url.searchParams.get('v') ??
+          ''
+      }
+
+      if (
+        url.pathname.startsWith(
+          '/shorts/',
+        )
+      ) {
+        videoId =
+          url.pathname
+            .split('/')[2] ??
+          ''
+      }
+
+      if (
+        url.pathname.startsWith(
+          '/embed/',
+        )
+      ) {
+        videoId =
+          url.pathname
+            .split('/')[2] ??
+          ''
+      }
+    }
+
+    if (!videoId) {
+      return ''
+    }
+
+    return `https://www.youtube.com/embed/${encodeURIComponent(
+      videoId,
+    )}`
+  } catch {
+    return ''
+  }
 }
 
 // Valida que una URL use HTTP o HTTPS
@@ -287,8 +443,14 @@ const validateForm = (): boolean => {
   }
 
   if (!form.side.description.trim()) {
+  fieldErrors.sideDescription =
+    'Ingresa la descripción del Lado A.'
+  isValid = false
+  } else if (
+    form.side.description.trim().length < 100
+  ) {
     fieldErrors.sideDescription =
-      'Ingresa la descripción del Lado A.'
+      'La descripción del Lado A debe tener al menos 100 caracteres.'
     isValid = false
   }
 
@@ -311,10 +473,16 @@ const validateForm = (): boolean => {
   }
 
   if (
-    !form.counterpart.description.trim()
+  !form.counterpart.description.trim()
+) {
+  fieldErrors.counterpartDescription =
+    'Ingresa la descripción del Lado B.'
+  isValid = false
+  } else if (
+    form.counterpart.description.trim().length < 100
   ) {
     fieldErrors.counterpartDescription =
-      'Ingresa la descripción del Lado B.'
+      'La descripción del Lado B debe tener al menos 100 caracteres.'
     isValid = false
   }
 
@@ -417,35 +585,39 @@ const submitForm = async (): Promise<void> => {
     const payload = buildPayload()
 
     if (isEditMode.value) {
-      if (!viewId.value) {
-        formError.value =
-          'No se pudo identificar la publicación.'
-        return
-      }
+    if (!viewId.value) {
+      formError.value =
+        'No se pudo identificar la publicación.'
+      return
+    }
 
-      await updateView(
-        viewId.value,
-        payload,
-        authStore.token,
-      )
+    await updateView(
+      viewId.value,
+      payload,
+      authStore.token,
+    )
 
-      toastStore.success(
-        'Publicación actualizada correctamente.',
-      )
-    } else {
-        await createView(
-          payload,
-          authStore.token,
-        )
+    hasUnsavedChanges.value = false
 
-        clearViewDraft()
+    toastStore.success(
+      'Publicación actualizada correctamente.',
+    )
+  } else {
+    await createView(
+      payload,
+      authStore.token,
+    )
 
-        toastStore.success(
-          'Publicación creada correctamente.',
-        )
-      }
+    clearViewDraft()
 
-    await router.push('/')
+    hasUnsavedChanges.value = false
+
+    toastStore.success(
+      'Publicación creada correctamente.',
+    )
+  }
+
+  await router.push('/')
   } catch (error) {
     if (
       error instanceof ViewEditorError &&
@@ -582,6 +754,7 @@ const loadExistingView = async (): Promise<void> => {
     form.hashtags = view.hashtags.map(
       (hashtag) => hashtag.name,
     )
+    hasUnsavedChanges.value = false
   } catch (error) {
     if (
       error instanceof ViewEditorError &&
@@ -603,16 +776,35 @@ const loadExistingView = async (): Promise<void> => {
   }
 }
 
+const cancelForm = async (): Promise<void> => {
+  if (hasUnsavedChanges.value) {
+    const confirmed = window.confirm(
+      'Tienes cambios sin guardar. ¿Seguro que deseas salir?',
+    )
+
+    if (!confirmed) {
+      return
+    }
+  }
+
+  await router.push('/')
+}
+
 onMounted(async () => {
-  await Promise.all([
-    loadCategories(),
-    loadHashtags(),
-  ])
+  await loadCategories()
 
   if (isEditMode.value) {
     await loadExistingView()
   } else {
     restoreViewDraft()
+  }
+})
+
+onBeforeUnmount(() => {
+  if (hashtagSearchTimer) {
+    clearTimeout(
+      hashtagSearchTimer,
+    )
   }
 })
 </script>
@@ -898,15 +1090,34 @@ onMounted(async () => {
 
                 <div class="field">
                 <label>
-                    URL
+                  URL
                 </label>
 
                 <input
-                    v-model.trim="source.url"
-                    type="url"
-                    placeholder="https://..."
+                  v-model.trim="source.url"
+                  type="url"
+                  placeholder="https://..."
                 />
+
+                <div
+                  v-if="
+                    source.type === 'YOUTUBE' &&
+                    getYoutubeEmbedUrl(source.url)
+                  "
+                  class="youtube-preview"
+                >
+                  <iframe
+                    :src="
+                      getYoutubeEmbedUrl(
+                        source.url,
+                      )
+                    "
+                    title="Vista previa de YouTube del Lado A"
+                    loading="lazy"
+                    allowfullscreen
+                  ></iframe>
                 </div>
+              </div>
 
                 <div class="field">
                 <label>
@@ -998,6 +1209,24 @@ onMounted(async () => {
                     type="url"
                     placeholder="https://..."
                 />
+                <div
+                  v-if="
+                    source.type === 'YOUTUBE' &&
+                    getYoutubeEmbedUrl(source.url)
+                  "
+                  class="youtube-preview"
+                >
+                  <iframe
+                    :src="
+                      getYoutubeEmbedUrl(
+                        source.url,
+                      )
+                    "
+                    title="Vista previa de YouTube del Lado B"
+                    loading="lazy"
+                    allowfullscreen
+                  ></iframe>
+                </div>
                 </div>
 
                 <div class="field">
@@ -1047,12 +1276,17 @@ onMounted(async () => {
             </label>
 
             <input
-                id="hashtag"
-                v-model="hashtagInput"
-                type="text"
-                list="available-hashtags"
-                placeholder="Ej. educación"
-                @keydown.enter.prevent="addHashtag"
+              id="hashtag"
+              v-model="hashtagInput"
+              type="text"
+              list="available-hashtags"
+              :placeholder="
+                hashtagSearching
+                  ? 'Buscando...'
+                  : 'Ej. educación'
+              "
+              autocomplete="off"
+              @keydown="handleHashtagKeydown"
             />
 
             <datalist id="available-hashtags">
@@ -1120,12 +1354,12 @@ onMounted(async () => {
 
         <div class="action-buttons">
             <button
-            class="cancel-button"
-            type="button"
-            :disabled="submitting"
-            @click="router.push('/')"
+              class="cancel-button"
+              type="button"
+              :disabled="submitting"
+              @click="cancelForm"
             >
-            Cancelar
+              Cancelar
             </button>
 
             <button
@@ -1149,6 +1383,11 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* =========================
+   MOBILE FIRST
+   Base: móvil
+   ========================= */
+
 .editor-page {
   min-height: 100vh;
   background: #fafafa;
@@ -1157,19 +1396,23 @@ onMounted(async () => {
 .editor-container {
   box-sizing: border-box;
   width: 100%;
-  max-width: 1100px;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 60px 24px 80px;
+  padding: 40px 16px 60px;
 }
 
+/* =========================
+   Encabezado
+   ========================= */
+
 .editor-header {
-  margin-bottom: 35px;
+  margin-bottom: 30px;
 }
 
 .editor-label {
   margin: 0 0 12px;
   color: #7c3aed;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 2px;
 }
@@ -1177,15 +1420,21 @@ onMounted(async () => {
 .editor-header h1 {
   margin: 0 0 10px;
   color: #18181b;
-  font-size: 38px;
+  font-size: 30px;
+  line-height: 1.15;
   letter-spacing: -1px;
 }
 
 .editor-description {
   margin: 0;
   color: #71717a;
-  font-size: 15px;
+  font-size: 16px;
+  line-height: 1.6;
 }
+
+/* =========================
+   Formulario
+   ========================= */
 
 .editor-form {
   display: flex;
@@ -1194,7 +1443,7 @@ onMounted(async () => {
 }
 
 .form-section {
-  padding: 28px;
+  padding: 20px;
   border: 1px solid #e8e7ef;
   border-radius: 18px;
   background: #ffffff;
@@ -1217,21 +1466,26 @@ onMounted(async () => {
   border-radius: 10px;
   background: #f5f3ff;
   color: #7c3aed;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
 }
 
 .section-heading h2 {
   margin: 0 0 4px;
   color: #18181b;
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .section-heading p {
   margin: 0;
   color: #a1a1aa;
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.5;
 }
+
+/* =========================
+   Campos
+   ========================= */
 
 .field {
   display: flex;
@@ -1241,7 +1495,7 @@ onMounted(async () => {
 
 .field label {
   color: #3f3f46;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -1257,7 +1511,7 @@ onMounted(async () => {
   background: #fafafa;
   color: #18181b;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 15px;
   transition: 0.2s ease;
 }
 
@@ -1278,12 +1532,16 @@ onMounted(async () => {
 .field-error {
   margin: 0;
   color: #b91c1c;
-  font-size: 12px;
+  font-size: 13px;
 }
+
+/* =========================
+   Perspectivas
+   ========================= */
 
 .perspectives-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 18px;
 }
 
@@ -1291,7 +1549,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  padding: 22px;
+  padding: 20px;
   border: 1px solid #e8e7ef;
   border-radius: 14px;
 }
@@ -1309,7 +1567,7 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   color: #71717a;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 1.3px;
 }
@@ -1328,9 +1586,13 @@ onMounted(async () => {
   background: #18181b;
 }
 
+/* =========================
+   Fuentes
+   ========================= */
+
 .sources-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 18px;
 }
 
@@ -1343,7 +1605,7 @@ onMounted(async () => {
 .sources-column h3 {
   margin: 0;
   color: #3f3f46;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .source-card {
@@ -1364,8 +1626,8 @@ onMounted(async () => {
 }
 
 .remove-source {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border: 1px solid #e4e4e7;
   border-radius: 9px;
   background: #ffffff;
@@ -1387,27 +1649,32 @@ onMounted(async () => {
   background: #faf9ff;
   color: #6d28d9;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
 
+/* =========================
+   Hashtags
+   ========================= */
+
 .hashtag-input-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr;
   align-items: end;
   gap: 12px;
 }
 
 .add-hashtag {
-  height: 41px;
+  width: 100%;
+  min-height: 42px;
   padding: 0 18px;
   border: none;
   border-radius: 9px;
   background: #7c3aed;
   color: #ffffff;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -1434,7 +1701,7 @@ onMounted(async () => {
   background: #f5f3ff;
   color: #6d28d9;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -1442,8 +1709,12 @@ onMounted(async () => {
 .hashtag-count {
   margin: 10px 0 0;
   color: #a1a1aa;
-  font-size: 11px;
+  font-size: 13px;
 }
+
+/* =========================
+   Acciones
+   ========================= */
 
 .form-actions {
   display: flex;
@@ -1459,22 +1730,23 @@ onMounted(async () => {
   border-radius: 10px;
   background: #fef2f2;
   color: #b91c1c;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .action-buttons {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column-reverse;
   gap: 12px;
 }
 
 .cancel-button,
 .submit-button {
+  width: 100%;
   min-height: 44px;
   padding: 0 20px;
   border-radius: 10px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -1501,7 +1773,94 @@ onMounted(async () => {
   background: #6d28d9;
 }
 
-/* Tema oscuro */
+/* =========================
+   TABLET
+   ========================= */
+
+@media (min-width: 701px) {
+  .editor-container {
+    max-width: 1180px;
+    padding: 50px 24px 70px;
+  }
+
+  .editor-header h1 {
+    font-size: 36px;
+  }
+
+  .form-section {
+    padding: 26px;
+  }
+
+  .perspective-card {
+    padding: 22px;
+  }
+
+  .hashtag-input-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .add-hashtag {
+    width: auto;
+    min-width: 120px;
+  }
+
+  .action-buttons {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+
+  .cancel-button,
+  .submit-button {
+    width: auto;
+  }
+}
+
+/* =========================
+   TABLET GRANDE / LAPTOP
+   ========================= */
+
+@media (min-width: 900px) {
+  .perspectives-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .sources-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .form-section {
+    padding: 28px;
+  }
+}
+
+/* =========================
+   ESCRITORIO
+   ========================= */
+
+@media (min-width: 1200px) {
+  .editor-container {
+    max-width: 1450px;
+    padding: 60px 32px 80px;
+  }
+
+  .editor-header h1 {
+    font-size: 38px;
+  }
+}
+
+/* =========================
+   PANTALLAS GRANDES
+   ========================= */
+
+@media (min-width: 1600px) {
+  .editor-container {
+    max-width: 1500px;
+  }
+}
+
+/* =========================
+   Tema oscuro
+   ========================= */
 
 :global(html[data-theme='dark'] .editor-page) {
   background: #0f1020;
@@ -1610,42 +1969,31 @@ onMounted(async () => {
   color: #d4d4d8;
 }
 
-@media (max-width: 700px) {
-  .editor-container {
-    padding: 40px 16px 60px;
-  }
+/* =========================
+   Preview de YouTube
+   ========================= */
 
-  .editor-header h1 {
-    font-size: 30px;
-  }
-
-  .form-section {
-    padding: 20px;
-  }
-
-  .perspectives-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .sources-grid {
-  grid-template-columns: 1fr;
-  }
-
-.hashtag-input-row {
-  grid-template-columns: 1fr;
-  }
-
-.add-hashtag {
+.youtube-preview {
   width: 100%;
-  }   
+  margin-top: 12px;
+  overflow: hidden;
+  border: 1px solid #e4e4e7;
+  border-radius: 10px;
+  background: #18181b;
+  aspect-ratio: 16 / 9;
+}
 
-  .action-buttons {
-  flex-direction: column-reverse;
-  }
-
-.cancel-button,
-.submit-button {
+.youtube-preview iframe {
+  display: block;
   width: 100%;
-  }
+  height: 100%;
+  border: 0;
+}
+
+:global(
+  html[data-theme='dark']
+  .youtube-preview
+) {
+  border-color: #343447;
 }
 </style>

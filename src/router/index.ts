@@ -182,9 +182,13 @@ router.beforeEach((to) => {
   }
 
   // Si ya inició sesión,
-  // no puede volver al login.
+  // no puede volver al login
+  // ni al registro.
   if (
-    to.path === '/login' &&
+    (
+      to.path === '/login' ||
+      to.path === '/register'
+    ) &&
     storedSession
   ) {
     return '/'

@@ -5,6 +5,16 @@ import {
   ref,
 } from 'vue'
 
+import {
+  useRoute,
+  useRouter,
+} from 'vue-router'
+
+import {
+  getHashtags,
+  type Hashtag,
+} from '@/services/hashtagsService'
+
 import AppNavbar from '@/components/AppNavbar.vue'
 import ViewCard from '@/components/ViewCard.vue'
 
@@ -19,10 +29,15 @@ import {
   saveBoardFilters,
 } from '@/services/filtersService'
 
+// URL y parámetros de la ruta actual
+const route = useRoute()
+const router = useRouter()
+
 // Publicaciones
 const views = ref<PoliticalView[]>([])
 const totalViews = ref(0)
 const authStore = useAuthStore()
+
 // Paginación
 const currentPage = ref(1)
 const pageSize = 5
@@ -32,6 +47,31 @@ const loadMoreError = ref('')
 // Categorías
 const categories = ref<Category[]>([])
 
+// Hashtags
+const hashtags = ref<Hashtag[]>([])
+const hashtagsLoading = ref(true)
+const hashtagSearch = ref('')
+const hashtagSuggestionsOpen = ref(false)
+
+const filteredHashtags = computed(() => {
+  const search = hashtagSearch.value
+    .trim()
+    .replace(/^#/, '')
+    .toLowerCase()
+
+  if (!search) {
+    return []
+  }
+
+  return hashtags.value
+    .filter((hashtag) =>
+      hashtag.name
+        .toLowerCase()
+        .includes(search),
+    )
+    .slice(0, 6)
+})
+
 // Filtros
 const selectedCategory = ref('')
 const selectedHashtags = ref<string[]>([])
@@ -40,21 +80,106 @@ const selectedSort = ref<
 >('recent')
 
 const restoreFilters = (): void => {
-  const savedFilters = getBoardFilters()
+  const savedFilters =
+    getBoardFilters()
 
-  if (!savedFilters) {
-    return
+  // Primero recuperamos localStorage
+  if (savedFilters) {
+    selectedCategory.value =
+      savedFilters.categoryId
+
+    selectedSort.value =
+      savedFilters.sort
+
+    selectedHashtags.value =
+      savedFilters.hashtags
+
+    hashtagSearch.value =
+      savedFilters.hashtags[0] ?? ''
   }
 
-  selectedCategory.value =
-    savedFilters.categoryId
+  // Si existen filtros en la URL,
+  // tienen prioridad sobre localStorage.
+  const category =
+    route.query.category
 
-  selectedSort.value =
-    savedFilters.sort
+  if (typeof category === 'string') {
+    selectedCategory.value =
+      category
+  }
 
-  selectedHashtags.value =
-    savedFilters.hashtags
+  const hashtag =
+    route.query.hashtag
+
+  if (typeof hashtag === 'string') {
+    const normalizedHashtag =
+      hashtag
+        .trim()
+        .replace(/^#/, '')
+        .toLowerCase()
+
+    selectedHashtags.value =
+      normalizedHashtag
+        ? [normalizedHashtag]
+        : []
+
+    hashtagSearch.value =
+      normalizedHashtag
+  }
+
+  const sort =
+    route.query.sort
+
+  if (
+    sort === 'recent' ||
+    sort === 'likes' ||
+    sort === 'dislikes'
+  ) {
+    selectedSort.value =
+      sort
+  }
 }
+
+const syncFiltersToUrl =
+  async (): Promise<void> => {
+    const query:
+      Record<string, string> = {
+        sort: selectedSort.value,
+      }
+
+    if (selectedCategory.value) {
+      query.category =
+        selectedCategory.value
+    }
+
+    const hashtag =
+      selectedHashtags.value[0]
+
+    if (hashtag) {
+      query.hashtag =
+        hashtag
+    }
+
+    await router.replace({
+      query,
+    })
+  }
+
+const persistFilters =
+  async (): Promise<void> => {
+    saveBoardFilters({
+      categoryId:
+        selectedCategory.value,
+
+      sort:
+        selectedSort.value,
+
+      hashtags:
+        selectedHashtags.value,
+    })
+
+    await syncFiltersToUrl()
+  }
 
 // Búsqueda
 const searchQuery = ref('')
@@ -80,7 +205,13 @@ const loadViews = async (): Promise<void> => {
     const response = await getViews(
       {
         category:
-          selectedCategory.value || undefined,
+          selectedCategory.value ||
+          undefined,
+
+        hashtag:
+          selectedHashtags.value[0] ||
+          undefined,
+
         sort: selectedSort.value,
         page: 1,
         limit: pageSize,
@@ -102,96 +233,193 @@ const loadViews = async (): Promise<void> => {
   }
 }
 
-// Carga la siguiente página y conserva las anteriores
-const loadMoreViews = async (): Promise<void> => {
-  if (
-    !hasMore.value ||
-    loadingMore.value
-  ) {
-    return
-  }
-
-  loadingMore.value = true
-  loadMoreError.value = ''
-
-  const nextPage = currentPage.value + 1
-
-  try {
-    const response = await getViews(
-      {
-        category:
-          selectedCategory.value || undefined,
-        sort: selectedSort.value,
-        page: nextPage,
-        limit: pageSize,
-      },
-      authStore.token ?? undefined,
-    )
-
-    views.value.push(...response.views)
-    totalViews.value = response.total
-    currentPage.value = nextPage
-  } catch (error) {
-    if (error instanceof Error) {
-      loadMoreError.value = error.message
-    } else {
-      loadMoreError.value =
-        'No fue posible cargar más publicaciones.'
+// Carga la siguiente página conservando las anteriores
+const loadMoreViews =
+  async (): Promise<void> => {
+    if (
+      !hasMore.value ||
+      loadingMore.value
+    ) {
+      return
     }
-  } finally {
-    loadingMore.value = false
+
+    loadingMore.value = true
+    loadMoreError.value = ''
+
+    const nextPage =
+      currentPage.value + 1
+
+    try {
+      const response = await getViews(
+        {
+          category:
+            selectedCategory.value ||
+            undefined,
+
+          hashtag:
+            selectedHashtags.value[0] ||
+            undefined,
+
+          sort: selectedSort.value,
+          page: nextPage,
+          limit: pageSize,
+        },
+        authStore.token ?? undefined,
+      )
+
+      views.value.push(
+        ...response.views,
+      )
+
+      totalViews.value =
+        response.total
+
+      currentPage.value =
+        nextPage
+    } catch (error) {
+      if (error instanceof Error) {
+        loadMoreError.value =
+          error.message
+      } else {
+        loadMoreError.value =
+          'No fue posible cargar más publicaciones.'
+      }
+    } finally {
+      loadingMore.value = false
+    }
   }
-}
 
-// Carga las categorías reales del API
-const loadCategories = async (): Promise<void> => {
-  categoriesLoading.value = true
+// Carga las categorías
+const loadCategories =
+  async (): Promise<void> => {
+    categoriesLoading.value = true
 
-  try {
-    const response = await getCategories()
+    try {
+      const response =
+        await getCategories()
 
-    categories.value = response.categories
-  } catch (error) {
-    console.error(
-      'No fue posible cargar las categorías.',
-      error,
-    )
-  } finally {
-    categoriesLoading.value = false
+      categories.value =
+        response.categories
+    } catch (error) {
+      console.error(
+        'No fue posible cargar las categorías.',
+        error,
+      )
+    } finally {
+      categoriesLoading.value =
+        false
+    }
   }
-}
 
-// Cambia la categoría y vuelve a la primera página
+// Carga los hashtags disponibles
+const loadHashtags =
+  async (): Promise<void> => {
+    hashtagsLoading.value = true
+
+    try {
+      const response =
+        await getHashtags()
+
+      hashtags.value =
+        response.hashtags
+    } catch (error) {
+      console.error(
+        'No fue posible cargar los hashtags.',
+        error,
+      )
+
+      hashtags.value = []
+    } finally {
+      hashtagsLoading.value =
+        false
+    }
+  }
+
+// Cambia la categoría
 const selectCategory = async (
   categoryId: string,
 ): Promise<void> => {
-  selectedCategory.value = categoryId
+  selectedCategory.value =
+    categoryId
 
-  saveBoardFilters({
-    categoryId: selectedCategory.value,
-    sort: selectedSort.value,
-    hashtags: selectedHashtags.value,
-  })
-
+  await persistFilters()
   await loadViews()
 }
 
-// Cambia el orden y vuelve a la primera página
-const handleSortChange = async (): Promise<void> => {
-  saveBoardFilters({
-    categoryId: selectedCategory.value,
-    sort: selectedSort.value,
-    hashtags: selectedHashtags.value,
-  })
+// Aplica el hashtag escrito manualmente
+const handleHashtagChange =
+  async (): Promise<void> => {
+    const normalizedHashtag =
+      hashtagSearch.value
+        .trim()
+        .replace(/^#/, '')
+        .toLowerCase()
+
+    selectedHashtags.value =
+      normalizedHashtag
+        ? [normalizedHashtag]
+        : []
+
+    hashtagSearch.value =
+      normalizedHashtag
+
+    hashtagSuggestionsOpen.value = false
+
+    await persistFilters()
+    await loadViews()
+  }
+
+// Selecciona un hashtag del autocomplete
+const selectHashtag = async (
+  hashtag: string,
+): Promise<void> => {
+  const normalizedHashtag =
+    hashtag
+      .trim()
+      .replace(/^#/, '')
+      .toLowerCase()
+
+  hashtagSearch.value =
+    normalizedHashtag
+
+  selectedHashtags.value =
+    normalizedHashtag
+      ? [normalizedHashtag]
+      : []
+
+  hashtagSuggestionsOpen.value = false
+
+  await persistFilters()
   await loadViews()
 }
+
+// Limpia el filtro de hashtag
+const clearHashtag =
+  async (): Promise<void> => {
+    hashtagSearch.value = ''
+    selectedHashtags.value = []
+    hashtagSuggestionsOpen.value = false
+
+    await persistFilters()
+    await loadViews()
+  }
+
+// Cambia el orden
+const handleSortChange =
+  async (): Promise<void> => {
+    await persistFilters()
+    await loadViews()
+  }
 
 // Carga inicial
 onMounted(async () => {
   restoreFilters()
 
+  await syncFiltersToUrl()
+
   await Promise.all([
     loadCategories(),
+    loadHashtags(),
     loadViews(),
   ])
 })
@@ -204,7 +432,6 @@ onMounted(async () => {
 
   <main class="dashboard-page">
     <section class="dashboard-container">
-      <!-- Encabezado -->
       <header class="dashboard-header">
         <div>
           <span class="dashboard-label">
@@ -229,7 +456,6 @@ onMounted(async () => {
         </div>
       </header>
 
-      <!-- Controles -->
       <section
         id="categories"
         class="dashboard-controls"
@@ -278,6 +504,99 @@ onMounted(async () => {
           </div>
         </div>
 
+        <div class="hashtag-section">
+          <label for="hashtag-filter">
+            Hashtag
+          </label>
+
+          <div class="hashtag-combobox">
+            <div class="hashtag-input-wrapper">
+              <input
+                id="hashtag-filter"
+                v-model="hashtagSearch"
+                type="text"
+                :disabled="hashtagsLoading"
+                placeholder="Buscar hashtag..."
+                autocomplete="off"
+                role="combobox"
+                aria-autocomplete="list"
+                :aria-expanded="
+                  hashtagSuggestionsOpen &&
+                  filteredHashtags.length > 0
+                "
+                aria-controls="hashtag-suggestions"
+                @input="
+                  hashtagSuggestionsOpen = true
+                "
+                @focus="
+                  hashtagSuggestionsOpen =
+                    hashtagSearch.trim().length > 0
+                "
+                @keydown.enter.prevent="
+                  handleHashtagChange
+                "
+                @keydown.esc="
+                  hashtagSuggestionsOpen = false
+                "
+              />
+
+              <button
+                v-if="hashtagSearch"
+                type="button"
+                class="hashtag-clear"
+                aria-label="Limpiar hashtag"
+                @click="clearHashtag"
+              >
+                ×
+              </button>
+            </div>
+
+            <div
+              v-if="
+                hashtagSuggestionsOpen &&
+                filteredHashtags.length > 0
+              "
+              id="hashtag-suggestions"
+              class="hashtag-suggestions"
+              role="listbox"
+            >
+              <button
+                v-for="hashtag in filteredHashtags"
+                :key="hashtag.id"
+                type="button"
+                class="hashtag-suggestion"
+                role="option"
+                @mousedown.prevent="
+                  selectHashtag(hashtag.name)
+                "
+              >
+                #{{ hashtag.name }}
+              </button>
+            </div>
+          </div>
+
+          <div
+            v-if="selectedHashtags.length"
+            class="active-hashtags"
+          >
+            <span
+              v-for="hashtag in selectedHashtags"
+              :key="hashtag"
+              class="hashtag-chip"
+            >
+              #{{ hashtag }}
+
+              <button
+                type="button"
+                aria-label="Quitar filtro de hashtag"
+                @click="clearHashtag"
+              >
+                ×
+              </button>
+            </span>
+          </div>
+        </div>
+
         <div class="sort-section">
           <label for="sort">
             Ordenar por
@@ -303,17 +622,14 @@ onMounted(async () => {
         </div>
       </section>
 
-      <!-- Cargando inicial -->
       <div
         v-if="loading"
         class="state-container"
       >
         <div class="loader"></div>
-
         <p>Cargando publicaciones...</p>
       </div>
 
-      <!-- Error inicial -->
       <div
         v-else-if="errorMessage"
         class="state-container error-state"
@@ -334,7 +650,6 @@ onMounted(async () => {
         </button>
       </div>
 
-      <!-- Estado vacío -->
       <div
         v-else-if="views.length === 0"
         class="state-container"
@@ -349,7 +664,6 @@ onMounted(async () => {
         </p>
       </div>
 
-      <!-- Publicaciones -->
       <template v-else>
         <section
           class="views-list"
@@ -362,7 +676,6 @@ onMounted(async () => {
           />
         </section>
 
-        <!-- Error al cargar otra página -->
         <p
           v-if="loadMoreError"
           class="load-more-error"
@@ -371,7 +684,6 @@ onMounted(async () => {
           {{ loadMoreError }}
         </p>
 
-        <!-- Cargar más -->
         <div
           v-if="hasMore"
           class="load-more-container"
@@ -409,7 +721,7 @@ onMounted(async () => {
 <style scoped>
 .dashboard-page {
   min-height: calc(100vh - 72px);
-  padding: 55px 24px;
+  padding: 35px 16px;
   background: #f7f7fb;
   font-family:
     Inter,
@@ -422,15 +734,16 @@ onMounted(async () => {
 
 .dashboard-container {
   width: 100%;
-  max-width: 1050px;
+  max-width: 100%;
   margin: 0 auto;
 }
 
 .dashboard-header {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 30px;
+  flex-direction: column;
+  gap: 18px;
   margin-bottom: 28px;
 }
 
@@ -438,7 +751,7 @@ onMounted(async () => {
   display: inline-block;
   margin-bottom: 9px;
   color: #6d28d9;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 900;
   letter-spacing: 2px;
 }
@@ -446,7 +759,8 @@ onMounted(async () => {
 .dashboard-header h1 {
   margin: 0 0 8px;
   color: #18181b;
-  font-size: 36px;
+  font-size: 30px;
+  line-height: 1.15;
   letter-spacing: -1.2px;
 }
 
@@ -454,8 +768,8 @@ onMounted(async () => {
   max-width: 620px;
   margin: 0;
   color: #71717a;
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 16px;
+  line-height: 1.65;
 }
 
 .results {
@@ -465,17 +779,16 @@ onMounted(async () => {
   border-radius: 20px;
   background: #ffffff;
   color: #71717a;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
-/* Filtros */
-
 .dashboard-controls {
   display: flex;
-  align-items: flex-end;
+  align-items: stretch;
   justify-content: space-between;
-  gap: 25px;
+  flex-direction: column;
+  gap: 20px;
   margin-bottom: 25px;
   padding: 18px 20px;
   border: 1px solid #e8e7ef;
@@ -489,11 +802,12 @@ onMounted(async () => {
 }
 
 .filter-label,
-.sort-section label {
+.sort-section label,
+.hashtag-section label {
   display: block;
   margin-bottom: 9px;
   color: #71717a;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.5px;
 }
@@ -511,7 +825,7 @@ onMounted(async () => {
   background: #ffffff;
   color: #71717a;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: 0.2s ease;
@@ -530,25 +844,152 @@ onMounted(async () => {
 
 .categories-loading {
   color: #a1a1aa;
-  font-size: 12px;
+  font-size: 14px;
 }
 
-.sort-section {
-  width: 170px;
+/* Hashtag */
+
+.hashtag-section {
+  width: 100%;
   flex-shrink: 0;
 }
 
-.sort-section select {
+.hashtag-combobox {
+  position: relative;
+  width: 100%;
+}
+
+.hashtag-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.hashtag-section input {
   box-sizing: border-box;
   width: 100%;
-  padding: 9px 11px;
+  padding: 10px 36px 10px 12px;
   border: 1px solid #e4e4e7;
   border-radius: 9px;
   outline: none;
   background: #fafafa;
   color: #52525b;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: 0.2s ease;
+}
+
+.hashtag-section input::placeholder {
+  color: #a1a1aa;
+}
+
+.hashtag-section input:focus {
+  border-color: #8b5cf6;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 3px rgba(124, 58, 237, 0.08);
+}
+
+.hashtag-section input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.hashtag-clear {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #71717a;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.hashtag-suggestions {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 5px);
+  left: 0;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid #e4e4e7;
+  border-radius: 9px;
+  background: #ffffff;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+}
+
+.hashtag-suggestion {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  color: #52525b;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hashtag-suggestion:hover,
+.hashtag-suggestion:focus {
+  outline: none;
+  background: #f5f3ff;
+  color: #6d28d9;
+}
+
+.active-hashtags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.hashtag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #ede9fe;
+  color: #6d28d9;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.hashtag-chip button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Ordenamiento */
+
+.sort-section {
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.sort-section select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e4e4e7;
+  border-radius: 9px;
+  outline: none;
+  background: #fafafa;
+  color: #52525b;
+  font-family: inherit;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -590,7 +1031,7 @@ onMounted(async () => {
   background: #ffffff;
   color: #6d28d9;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   cursor: pointer;
   transition: 0.2s ease;
@@ -608,13 +1049,13 @@ onMounted(async () => {
 
 .loaded-count {
   color: #a1a1aa;
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .load-more-error {
   margin: 18px 0 0;
   color: #b91c1c;
-  font-size: 12px;
+  font-size: 14px;
   text-align: center;
 }
 
@@ -636,7 +1077,7 @@ onMounted(async () => {
   justify-content: center;
   flex-direction: column;
   gap: 12px;
-  padding: 40px;
+  padding: 30px 20px;
   border: 1px solid #e4e4e7;
   border-radius: 18px;
   background: #ffffff;
@@ -646,13 +1087,13 @@ onMounted(async () => {
 
 .state-container strong {
   color: #27272a;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .state-container p {
   max-width: 450px;
   margin: 0;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.6;
 }
 
@@ -672,7 +1113,8 @@ onMounted(async () => {
   border-radius: 8px;
   background: #6d28d9;
   color: #ffffff;
-  font-size: 12px;
+  font-family: inherit;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -687,30 +1129,67 @@ onMounted(async () => {
   }
 }
 
-@media (max-width: 800px) {
-  .dashboard-controls {
-    align-items: stretch;
-    flex-direction: column;
-  }
+/* Tablet */
 
-  .sort-section {
-    width: 100%;
-  }
-}
-
-@media (max-width: 700px) {
+@media (min-width: 701px) {
   .dashboard-page {
-    padding: 35px 16px;
+    padding: 45px 24px;
+  }
+
+  .dashboard-container {
+    max-width: 1100px;
   }
 
   .dashboard-header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 18px;
+    align-items: flex-end;
+    flex-direction: row;
+    gap: 30px;
   }
 
   .dashboard-header h1 {
-    font-size: 30px;
+    font-size: 36px;
+  }
+
+  .state-container {
+    padding: 40px;
+  }
+}
+
+/* Tablet grande / laptop */
+
+@media (min-width: 801px) {
+  .dashboard-controls {
+    align-items: flex-end;
+    flex-direction: row;
+    gap: 25px;
+  }
+
+  .hashtag-section {
+    width: 190px;
+  }
+
+  .sort-section {
+    width: 190px;
+  }
+}
+
+/* Escritorio */
+
+@media (min-width: 1200px) {
+  .dashboard-page {
+    padding: 55px 32px;
+  }
+
+  .dashboard-container {
+    max-width: 1450px;
+  }
+}
+
+/* Pantallas muy grandes */
+
+@media (min-width: 1600px) {
+  .dashboard-container {
+    max-width: 1500px;
   }
 }
 
@@ -738,15 +1217,14 @@ onMounted(async () => {
   color: #d4d4d8;
 }
 
-/* Filtros */
-
 :global(html[data-theme='dark'] .dashboard-controls) {
   border-color: #29293d;
   background: #171728;
 }
 
 :global(html[data-theme='dark'] .filter-label),
-:global(html[data-theme='dark'] .sort-section label) {
+:global(html[data-theme='dark'] .sort-section label),
+:global(html[data-theme='dark'] .hashtag-section label) {
   color: #a1a1aa;
 }
 
@@ -772,6 +1250,50 @@ onMounted(async () => {
   color: #71717a;
 }
 
+:global(html[data-theme='dark'] .hashtag-section input) {
+  border-color: #343447;
+  background: #1b1b2d;
+  color: #d4d4d8;
+}
+
+:global(
+  html[data-theme='dark']
+    .hashtag-section input::placeholder
+) {
+  color: #71717a;
+}
+
+:global(html[data-theme='dark'] .hashtag-section input:focus) {
+  border-color: #8b5cf6;
+  background: #202033;
+  box-shadow:
+    0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+:global(html[data-theme='dark'] .hashtag-suggestions) {
+  border-color: #343447;
+  background: #1b1b2d;
+}
+
+:global(html[data-theme='dark'] .hashtag-suggestion) {
+  color: #d4d4d8;
+}
+
+:global(html[data-theme='dark'] .hashtag-suggestion:hover),
+:global(html[data-theme='dark'] .hashtag-suggestion:focus) {
+  background: #25243a;
+  color: #c4b5fd;
+}
+
+:global(html[data-theme='dark'] .hashtag-clear) {
+  color: #a1a1aa;
+}
+
+:global(html[data-theme='dark'] .hashtag-chip) {
+  background: #2e254f;
+  color: #c4b5fd;
+}
+
 :global(html[data-theme='dark'] .sort-section select) {
   border-color: #343447;
   background: #1b1b2d;
@@ -783,8 +1305,6 @@ onMounted(async () => {
   box-shadow:
     0 0 0 3px rgba(139, 92, 246, 0.15);
 }
-
-/* Estados */
 
 :global(html[data-theme='dark'] .state-container) {
   border-color: #29293d;
@@ -801,15 +1321,16 @@ onMounted(async () => {
   border-top-color: #a78bfa;
 }
 
-/* Cargar más */
-
 :global(html[data-theme='dark'] .load-more-button) {
   border-color: #8b5cf6;
   background: #171728;
   color: #c4b5fd;
 }
 
-:global(html[data-theme='dark'] .load-more-button:hover:not(:disabled)) {
+:global(
+  html[data-theme='dark']
+    .load-more-button:hover:not(:disabled)
+) {
   background: #7c3aed;
   color: #ffffff;
 }

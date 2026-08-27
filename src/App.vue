@@ -31,6 +31,10 @@ const handleOffline = (): void => {
   showOfflineToast()
 }
 
+const handleStaleCache = (): void => {
+  showOfflineToast()
+}
+
 const handleOnline = (): void => {
   if (offlineToastId !== null) {
     toastStore.removeToast(offlineToastId)
@@ -63,6 +67,11 @@ onMounted(() => {
     handleOnline,
   )
 
+  window.addEventListener(
+    'lasdoscaras:stale-cache',
+    handleStaleCache,
+  )
+
   if (!navigator.onLine) {
     showOfflineToast()
   }
@@ -77,6 +86,11 @@ onBeforeUnmount(() => {
   window.removeEventListener(
     'online',
     handleOnline,
+  )
+
+  window.removeEventListener(
+    'lasdoscaras:stale-cache',
+    handleStaleCache,
   )
 })
 </script>

@@ -210,27 +210,31 @@ const handleLogin = async () => {
 
 <style scoped>
 /* =========================
-   Pantalla principal
+   MOBILE FIRST
+   Base: móvil
    ========================= */
 
 .login-page {
   position: relative;
-  min-height: 100vh;
   display: flex;
+  min-height: 100vh;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding: 30px;
-  background:
-    radial-gradient(circle at top left, #312e81 0%, transparent 35%),
-    radial-gradient(circle at bottom right, #581c87 0%, transparent 35%),
-    #0f1020;
+  padding: 0;
+  background: #ffffff;
   font-family:
-    Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
     sans-serif;
 }
 
-/* Formas decorativas del fondo */
+/* =========================
+   Formas decorativas
+   ========================= */
 
 .background-shape {
   position: absolute;
@@ -240,18 +244,18 @@ const handleLogin = async () => {
 }
 
 .shape-one {
-  width: 350px;
-  height: 350px;
   top: -150px;
   right: -100px;
+  width: 350px;
+  height: 350px;
   background: #8b5cf6;
 }
 
 .shape-two {
-  width: 300px;
-  height: 300px;
   bottom: -150px;
   left: -100px;
+  width: 300px;
+  height: 300px;
   background: #4f46e5;
 }
 
@@ -262,44 +266,34 @@ const handleLogin = async () => {
 .login-container {
   position: relative;
   z-index: 1;
-  width: 100%;
-  max-width: 1000px;
-  min-height: 610px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  grid-template-columns: 1fr;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 24px;
+  border: none;
+  border-radius: 0;
   background: #ffffff;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+  box-shadow: none;
 }
 
 /* =========================
-   Sección izquierda
+   Sección de marca
+   Oculta en móvil
    ========================= */
 
 .brand-section {
-  position: relative;
-  display: flex;
-  align-items: center;
-  padding: 60px;
-  overflow: hidden;
-  color: #ffffff;
-  background:
-    linear-gradient(
-      145deg,
-      rgba(79, 70, 229, 0.96),
-      rgba(88, 28, 135, 0.97)
-    );
+  display: none;
 }
 
 .brand-section::after {
   content: '';
   position: absolute;
-  width: 280px;
-  height: 280px;
   right: -120px;
   bottom: -80px;
+  width: 280px;
+  height: 280px;
   border: 50px solid rgba(255, 255, 255, 0.07);
   border-radius: 50%;
 }
@@ -369,7 +363,7 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 55px;
+  padding: 35px 24px;
   background: #ffffff;
 }
 
@@ -379,7 +373,15 @@ const handleLogin = async () => {
 }
 
 .mobile-logo {
-  display: none;
+  display: block;
+  margin-bottom: 35px;
+  color: #4f46e5;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.mobile-logo span {
+  margin-right: 6px;
 }
 
 .login-header {
@@ -390,7 +392,7 @@ const handleLogin = async () => {
   display: inline-block;
   margin-bottom: 12px;
   color: #6d28d9;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 2px;
 }
@@ -398,14 +400,16 @@ const handleLogin = async () => {
 .login-header h2 {
   margin: 0 0 10px;
   color: #171717;
-  font-size: 34px;
+  font-size: 30px;
+  line-height: 1.15;
   letter-spacing: -1px;
 }
 
 .login-header p {
   margin: 0;
   color: #737373;
-  font-size: 15px;
+  font-size: 16px;
+  line-height: 1.6;
 }
 
 /* =========================
@@ -446,12 +450,13 @@ const handleLogin = async () => {
 .input-container input {
   box-sizing: border-box;
   width: 100%;
-  padding: 14px 15px 14px 43px;
+  padding: 14px 70px 14px 43px;
   border: 1px solid #e5e5e5;
   border-radius: 10px;
   outline: none;
   background: #fafafa;
   color: #171717;
+  font-family: inherit;
   font-size: 15px;
   transition: 0.2s ease;
 }
@@ -463,7 +468,30 @@ const handleLogin = async () => {
 .input-container input:focus {
   border-color: #7c3aed;
   background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+  box-shadow:
+    0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+/* =========================
+   Mostrar / ocultar contraseña
+   ========================= */
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  border: none;
+  background: transparent;
+  color: #6d28d9;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.password-toggle:hover {
+  color: #4f46e5;
 }
 
 /* =========================
@@ -487,9 +515,10 @@ const handleLogin = async () => {
   height: 20px;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   border-radius: 50%;
   background: #b91c1c;
-  color: white;
+  color: #ffffff;
   font-size: 12px;
   font-weight: bold;
 }
@@ -497,10 +526,11 @@ const handleLogin = async () => {
 .error-message p {
   margin: 0;
   font-size: 13px;
+  line-height: 1.5;
 }
 
 /* =========================
-   Botón
+   Botón de login
    ========================= */
 
 .login-button {
@@ -513,8 +543,14 @@ const handleLogin = async () => {
   padding: 14px;
   border: none;
   border-radius: 10px;
-  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  background:
+    linear-gradient(
+      135deg,
+      #4f46e5,
+      #7c3aed
+    );
   color: #ffffff;
+  font-family: inherit;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
@@ -525,12 +561,13 @@ const handleLogin = async () => {
 
 .login-button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(109, 40, 217, 0.25);
+  box-shadow:
+    0 10px 20px rgba(109, 40, 217, 0.25);
 }
 
 .login-button:disabled {
-  opacity: 0.65;
   cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .button-arrow {
@@ -549,8 +586,8 @@ const handleLogin = async () => {
 }
 
 .register-section > span {
-  flex: 1;
   height: 1px;
+  flex: 1;
   background: #e5e5e5;
 }
 
@@ -558,7 +595,7 @@ const handleLogin = async () => {
   margin: 0;
   color: #737373;
   font-size: 13px;
-  white-space: nowrap;
+  text-align: center;
 }
 
 .register-section a {
@@ -572,84 +609,112 @@ const handleLogin = async () => {
 }
 
 /* =========================
-   Responsive
+   TABLET
    ========================= */
 
-@media (max-width: 800px) {
+@media (min-width: 481px) {
   .login-page {
     padding: 20px;
+    background:
+      radial-gradient(
+        circle at top left,
+        #312e81 0%,
+        transparent 35%
+      ),
+      radial-gradient(
+        circle at bottom right,
+        #581c87 0%,
+        transparent 35%
+      ),
+      #0f1020;
   }
 
   .login-container {
     max-width: 500px;
     min-height: auto;
-    grid-template-columns: 1fr;
-  }
-
-  .brand-section {
-    display: none;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 24px;
+    box-shadow:
+      0 30px 80px rgba(0, 0, 0, 0.35);
   }
 
   .form-section {
     padding: 45px 35px;
   }
 
-  .mobile-logo {
-    display: block;
-    margin-bottom: 35px;
-    color: #4f46e5;
-    font-size: 20px;
-    font-weight: 800;
-  }
-
-  .mobile-logo span {
-    margin-right: 6px;
+  .login-header h2 {
+    font-size: 32px;
   }
 }
 
-@media (max-width: 480px) {
+/* =========================
+   ESCRITORIO
+   ========================= */
+
+@media (min-width: 801px) {
   .login-page {
-    padding: 0;
-    background: #ffffff;
+    padding: 30px;
   }
 
   .login-container {
-    min-height: 100vh;
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
+    max-width: 1100px;
+    min-height: 610px;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .brand-section {
+    position: relative;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    padding: 60px;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(79, 70, 229, 0.96),
+        rgba(88, 28, 135, 0.97)
+      );
+    color: #ffffff;
   }
 
   .form-section {
-    padding: 35px 24px;
+    padding: 55px;
+  }
+
+  .form-content {
+    max-width: 400px;
+  }
+
+  .mobile-logo {
+    display: none;
   }
 
   .login-header h2 {
-    font-size: 30px;
+    font-size: 36px;
   }
 }
 
- /* Botón para mostrar u ocultar la contraseña */
-.password-toggle {
-  position: absolute;
-  top: 50%;
-  right: 14px;
-  border: none;
-  background: transparent;
-  color: #6d28d9;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transform: translateY(-50%);
-}
+/* =========================
+   PANTALLAS GRANDES
+   ========================= */
 
-.password-toggle:hover {
-  color: #4f46e5;
+@media (min-width: 1400px) {
+  .login-container {
+    max-width: 1200px;
+  }
+
+  .form-content {
+    max-width: 420px;
+  }
 }
 
 /* =========================
    TEMA OSCURO
    ========================= */
+
+:global(html[data-theme='dark'] .login-page) {
+  background: #0f1020;
+}
 
 :global(html[data-theme='dark'] .login-container) {
   border-color: #343447;
@@ -739,20 +804,9 @@ const handleLogin = async () => {
   color: #ffffff;
 }
 
-/* Móvil en modo oscuro */
-
-@media (max-width: 480px) {
-  :global(html[data-theme='dark'] .login-page) {
-    background: #0f1020;
-  }
-
-  :global(html[data-theme='dark'] .login-container) {
-    background: #171728;
-  }
-}
-
 /* =========================
-   AUTOFILL EN TEMA OSCURO- Para Chrome
+   AUTOFILL EN TEMA OSCURO
+   Chrome
    ========================= */
 
 :global(

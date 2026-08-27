@@ -10,6 +10,7 @@ import {
   getCache,
   getStaleCache,
   removeCacheByPrefix,
+  notifyStaleCacheUsage,
   setCache,
 } from '@/utils/cache'
 
@@ -132,6 +133,8 @@ export const getViews = async (
         )
 
       if (staleViews) {
+        notifyStaleCacheUsage()
+
         return staleViews
       }
     }
@@ -216,6 +219,7 @@ export const getViewById = async (
         )
 
       if (staleView) {
+        notifyStaleCacheUsage()
         return staleView
       }
     }

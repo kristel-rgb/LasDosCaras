@@ -190,6 +190,75 @@ const handleFavoriteRemoved = (
     )
 }
 
+const handleFavoriteChange = async (
+  viewId: string,
+  isFavorite: boolean,
+): Promise<void> => {
+  if (!authStore.token) {
+    return
+  }
+
+  // Actualiza también la propiedad de
+  // la publicación dentro de Mis publicaciones
+  const ownView = myViews.value.find(
+    (view) => view.id === viewId,
+  )
+
+  if (ownView) {
+    ownView.isFavorite = isFavorite
+  }
+
+  // Si se eliminó, podemos quitarla
+  // inmediatamente sin llamar al API
+  if (!isFavorite) {
+    favoriteViews.value =
+      favoriteViews.value.filter(
+        (view) =>
+          view.id !== viewId,
+      )
+
+    return
+  }
+
+  // Si se agregó y todavía no existe
+  // en Mis favoritos, cargamos la publicación
+  const alreadyExists =
+    favoriteViews.value.some(
+      (view) =>
+        view.id === viewId,
+    )
+
+  if (alreadyExists) {
+    return
+  }
+
+  try {
+    const favoriteView =
+      await getViewById(
+        viewId,
+        authStore.token,
+      )
+
+    if (
+      favoriteView.status ===
+      'PUBLISHED'
+    ) {
+      favoriteView.isFavorite = true
+
+      favoriteViews.value = [
+        favoriteView,
+        ...favoriteViews.value,
+      ]
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      toastStore.error(
+        error.message,
+      )
+    }
+  }
+}
+
 // Elimina una publicación de favoritos
 const removeFavorite = async (
   viewId: string,
@@ -487,6 +556,7 @@ onMounted(loadProfile)
           >
             <ViewCard
               :view="view"
+              @favorite-change="handleFavoriteChange"
             />
 
             <div class="owned-actions">
@@ -581,6 +651,7 @@ onMounted(loadProfile)
             <ViewCard
               :view="view"
               @remove-favorite="handleFavoriteRemoved"
+              @favorite-change="handleFavoriteChange"
             />
 
             <div class="owned-actions">
@@ -702,22 +773,33 @@ onMounted(loadProfile)
 </template>
 
 <style scoped>
+/* =========================
+   MOBILE FIRST
+   Base: móvil
+   ========================= */
+
 .profile-page {
   min-height: 100vh;
-  padding: 40px 24px 70px;
+  padding: 28px 14px 50px;
   background: #f7f7fb;
 }
 
 .profile-container {
-  width: min(1180px, 100%);
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
 }
 
+/* =========================
+   Encabezado del perfil
+   ========================= */
+
 .profile-header {
   display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 28px;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px;
   border: 1px solid #e4e4e7;
   border-radius: 18px;
   background: #ffffff;
@@ -725,20 +807,21 @@ onMounted(loadProfile)
 
 .profile-avatar {
   display: flex;
-  width: 76px;
-  height: 76px;
+  width: 72px;
+  height: 72px;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   border-radius: 50%;
   background: #7c3aed;
   color: #ffffff;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 800;
 }
 
 .profile-info {
   min-width: 0;
+  width: 100%;
   flex: 1;
 }
 
@@ -746,7 +829,7 @@ onMounted(loadProfile)
   display: block;
   margin-bottom: 6px;
   color: #7c3aed;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.12em;
 }
@@ -758,14 +841,16 @@ onMounted(loadProfile)
 }
 
 .profile-info h1 {
-  font-size: 28px;
+  font-size: 30px;
+  line-height: 1.2;
 }
 
 .profile-info > p,
 .section-heading p {
   margin: 7px 0 0;
   color: #71717a;
-  font-size: 13px;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 .profile-meta {
@@ -776,44 +861,51 @@ onMounted(loadProfile)
 }
 
 .profile-meta span {
-  padding: 5px 9px;
+  padding: 6px 10px;
   border-radius: 999px;
   background: #f4f4f5;
   color: #52525b;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .logout-button {
+  width: 100%;
   padding: 10px 14px;
   border: 1px solid #fecaca;
   border-radius: 8px;
   background: #fff1f2;
   color: #b91c1c;
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
+
+/* =========================
+   Pestañas
+   ========================= */
 
 .profile-tabs {
   display: flex;
   gap: 8px;
   margin: 22px 0;
   overflow-x: auto;
+  padding-bottom: 2px;
 }
 
 .profile-tabs button {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
   padding: 10px 14px;
   border: 1px solid #d4d4d8;
   border-radius: 9px;
   background: #ffffff;
   color: #52525b;
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
@@ -827,17 +919,23 @@ onMounted(loadProfile)
 
 .profile-tabs span {
   display: inline-flex;
-  min-width: 22px;
+  min-width: 24px;
+  align-items: center;
   justify-content: center;
-  padding: 2px 6px;
+  padding: 3px 7px;
   border-radius: 999px;
   background: #ede9fe;
-  font-size: 10px;
+  font-size: 12px;
+  font-weight: 700;
 }
+
+/* =========================
+   Panel principal
+   ========================= */
 
 .profile-panel,
 .state-card {
-  padding: 26px;
+  padding: 22px;
   border: 1px solid #e4e4e7;
   border-radius: 18px;
   background: #ffffff;
@@ -845,19 +943,29 @@ onMounted(loadProfile)
 
 .section-heading {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 20px;
+  flex-direction: column;
+  gap: 16px;
   margin-bottom: 24px;
 }
 
-.history-heading {
-  align-items: center;
+.section-heading h2 {
+  font-size: 24px;
 }
+
+.history-heading {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+/* =========================
+   Publicaciones
+   ========================= */
 
 .views-grid {
   display: grid;
-  grid-template-columns:
-    repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: 1fr;
   gap: 18px;
 }
 
@@ -879,7 +987,7 @@ onMounted(loadProfile)
   padding: 9px 13px;
   border-radius: 8px;
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -910,17 +1018,21 @@ onMounted(loadProfile)
 .unpublished-badge {
   align-self: center;
   margin-right: auto;
-  padding: 5px 9px;
+  padding: 6px 10px;
   border-radius: 999px;
   background: #fee2e2;
   color: #991b1b;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 
+/* =========================
+   Estados
+   ========================= */
+
 .empty-state,
 .state-card {
-  padding: 50px 20px;
+  padding: 42px 18px;
   color: #71717a;
   text-align: center;
 }
@@ -929,6 +1041,13 @@ onMounted(loadProfile)
 .state-card strong {
   margin-top: 0;
   color: #27272a;
+  font-size: 18px;
+}
+
+.empty-state p,
+.state-card p {
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 .loader {
@@ -941,6 +1060,10 @@ onMounted(loadProfile)
   animation: spin 0.7s linear infinite;
 }
 
+/* =========================
+   Historial
+   ========================= */
+
 .history-list {
   display: grid;
   gap: 10px;
@@ -948,9 +1071,10 @@ onMounted(loadProfile)
 
 .history-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
+  flex-direction: column;
+  gap: 10px;
   width: 100%;
   padding: 15px;
   border: 1px solid #e4e4e7;
@@ -970,6 +1094,7 @@ onMounted(loadProfile)
 .history-item strong {
   overflow: hidden;
   color: #27272a;
+  font-size: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -977,7 +1102,7 @@ onMounted(loadProfile)
 .history-item span,
 .history-item time {
   color: #71717a;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 @keyframes spin {
@@ -986,7 +1111,123 @@ onMounted(loadProfile)
   }
 }
 
-/* Tema oscuro */
+/* =========================
+   TABLET
+   ========================= */
+
+@media (min-width: 701px) {
+  .profile-page {
+    padding: 40px 24px 70px;
+  }
+
+  .profile-container {
+    max-width: 1180px;
+  }
+
+  .profile-header {
+    align-items: center;
+    flex-direction: row;
+    gap: 20px;
+    padding: 28px;
+  }
+
+  .profile-avatar {
+    width: 76px;
+    height: 76px;
+    font-size: 30px;
+  }
+
+  .profile-info h1 {
+    font-size: 32px;
+  }
+
+  .logout-button {
+    width: auto;
+  }
+
+  .profile-panel,
+  .state-card {
+    padding: 26px;
+  }
+
+  .section-heading {
+    align-items: center;
+    flex-direction: row;
+    gap: 20px;
+  }
+
+  .section-heading h2 {
+    font-size: 26px;
+  }
+
+  .history-heading {
+    align-items: center;
+    flex-direction: row;
+  }
+
+  /* En tablet mantenemos una sola columna.
+     Evita que ViewCard quede demasiado angosto. */
+  .views-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .history-item {
+    align-items: center;
+    flex-direction: row;
+    gap: 18px;
+  }
+
+  .empty-state,
+  .state-card {
+    padding: 50px 20px;
+  }
+}
+
+/* =========================
+   ESCRITORIO
+   ========================= */
+
+@media (min-width: 1200px) {
+  .profile-page {
+    padding: 50px 32px 80px;
+  }
+
+  .profile-container {
+    max-width: 1450px;
+  }
+
+  /* Dos publicaciones por fila únicamente
+     cuando ya existe suficiente espacio. */
+  .views-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* =========================
+   PANTALLAS GRANDES
+   ========================= */
+
+@media (min-width: 1600px) {
+  .profile-container {
+    max-width: 1500px;
+  }
+}
+
+/* =========================
+   PANTALLAS MUY GRANDES
+   ========================= */
+
+@media (min-width: 1750px) {
+  .views-grid {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* =========================
+   Tema oscuro
+   ========================= */
 
 :global(html[data-theme='dark'] .profile-page) {
   background: #0f1020;
@@ -1050,36 +1291,5 @@ onMounted(loadProfile)
 ) {
   background: #7c3aed;
   color: #ffffff;
-}
-
-/* Responsive */
-
-@media (max-width: 700px) {
-  .profile-page {
-    padding: 28px 14px 50px;
-  }
-
-  .profile-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .logout-button {
-    width: 100%;
-  }
-
-  .views-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .history-heading {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .history-item {
-    align-items: flex-start;
-    flex-direction: column;
-  }
 }
 </style>

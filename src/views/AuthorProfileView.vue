@@ -141,18 +141,28 @@ onMounted(loadAuthorProfile)
             </p>
           </div>
 
-          <div class="author-stat">
-            <strong>
-              {{ author.publishedViewsCount }}
-            </strong>
+          <div class="author-actions">
+            <div class="author-stat">
+              <strong>
+                {{ author.publishedViewsCount }}
+              </strong>
 
-            <span>
-              {{
-                author.publishedViewsCount === 1
-                  ? 'publicación'
-                  : 'publicaciones'
-              }}
-            </span>
+              <span>
+                {{
+                  author.publishedViewsCount === 1
+                    ? 'publicación'
+                    : 'publicaciones'
+                }}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              class="back-button author-back-button"
+              @click="router.push({ name: 'tablero' })"
+            >
+              Volver al tablero
+            </button>
           </div>
         </section>
 
@@ -217,14 +227,20 @@ onMounted(loadAuthorProfile)
 </template>
 
 <style scoped>
+/* =========================
+   MOBILE FIRST
+   Base: móvil
+   ========================= */
+
 .author-page {
   min-height: 100vh;
-  padding: 40px 24px 70px;
+  padding: 24px 14px 50px;
   background: #f7f7fb;
 }
 
 .author-container {
-  width: min(1180px, 100%);
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
 }
 
@@ -234,9 +250,10 @@ onMounted(loadAuthorProfile)
 
 .author-header {
   display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 28px;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px;
   border: 1px solid #e4e4e7;
   border-radius: 18px;
   background: #ffffff;
@@ -244,20 +261,21 @@ onMounted(loadAuthorProfile)
 
 .author-avatar {
   display: flex;
-  width: 76px;
-  height: 76px;
+  width: 72px;
+  height: 72px;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   border-radius: 50%;
   background: #7c3aed;
   color: #ffffff;
-  font-size: 1.8rem;
+  font-size: 30px;
   font-weight: 800;
 }
 
 .author-info {
   min-width: 0;
+  width: 100%;
   flex: 1;
 }
 
@@ -266,7 +284,7 @@ onMounted(loadAuthorProfile)
   display: block;
   margin-bottom: 6px;
   color: #7c3aed;
-  font-size: 0.7rem;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.12em;
 }
@@ -274,17 +292,20 @@ onMounted(loadAuthorProfile)
 .author-info h1 {
   margin: 0;
   color: #18181b;
-  font-size: 1.8rem;
+  font-size: 30px;
+  line-height: 1.2;
 }
 
 .author-info p {
   margin: 7px 0 0;
   color: #71717a;
-  font-size: 0.85rem;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 .author-stat {
-  min-width: 110px;
+  box-sizing: border-box;
+  width: 100%;
   padding: 16px;
   border: 1px solid #e4e4e7;
   border-radius: 12px;
@@ -294,12 +315,12 @@ onMounted(loadAuthorProfile)
 .author-stat strong {
   display: block;
   color: #7c3aed;
-  font-size: 1.6rem;
+  font-size: 28px;
 }
 
 .author-stat span {
   color: #71717a;
-  font-size: 0.75rem;
+  font-size: 13px;
 }
 
 /* =========================
@@ -308,7 +329,7 @@ onMounted(loadAuthorProfile)
 
 .author-publications {
   margin-top: 24px;
-  padding: 28px;
+  padding: 20px;
   border: 1px solid #e4e4e7;
   border-radius: 18px;
   background: #ffffff;
@@ -318,28 +339,54 @@ onMounted(loadAuthorProfile)
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 20px;
+  flex-direction: column;
+  gap: 14px;
   margin-bottom: 24px;
 }
 
 .section-heading h2 {
   margin: 0;
   color: #18181b;
-  font-size: 1.35rem;
+  font-size: 24px;
 }
 
 .results-count {
-  padding: 6px 11px;
+  padding: 7px 12px;
   border: 1px solid #e4e4e7;
   border-radius: 999px;
   color: #71717a;
-  font-size: 0.75rem;
+  font-size: 13px;
+  font-weight: 700;
 }
+
+.author-actions {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.author-back-button {
+  width: 100%;
+  margin-top: 0;
+  border: 1px solid #7c3aed;
+  background: #7c3aed;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.18);
+}
+
+.author-back-button:hover {
+  border-color: #6d28d9;
+  background: #6d28d9;
+  color: #ffffff;
+}
+
+/* En móvil y tablet usamos una sola columna
+   para evitar que ViewCard quede demasiado angosto. */
 
 .views-grid {
   display: grid;
-  grid-template-columns:
-    repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: 1fr;
   gap: 18px;
 }
 
@@ -349,7 +396,7 @@ onMounted(loadAuthorProfile)
 
 .state-card,
 .empty-state {
-  padding: 50px 24px;
+  padding: 42px 20px;
   border: 1px solid #e4e4e7;
   border-radius: 18px;
   background: #ffffff;
@@ -358,20 +405,23 @@ onMounted(loadAuthorProfile)
 
 .state-card {
   display: flex;
-  align-items: center;
-  flex-direction: column;
-  justify-content: center;
   min-height: 280px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
 }
 
 .state-card p,
 .empty-state p {
   color: #71717a;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 .state-card h1,
 .empty-state h3 {
   color: #27272a;
+  font-size: 20px;
 }
 
 .state-icon,
@@ -385,6 +435,7 @@ onMounted(loadAuthorProfile)
   border-radius: 50%;
   background: #ede9fe;
   color: #7c3aed;
+  font-size: 16px;
   font-weight: 800;
 }
 
@@ -396,7 +447,7 @@ onMounted(loadAuthorProfile)
   background: #7c3aed;
   color: #ffffff;
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -417,6 +468,119 @@ onMounted(loadAuthorProfile)
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* =========================
+   TABLET
+   ========================= */
+
+@media (min-width: 701px) {
+  .author-page {
+    padding: 40px 24px 70px;
+  }
+
+  .author-container {
+    max-width: 1180px;
+  }
+
+  .author-header {
+    align-items: center;
+    flex-direction: row;
+    gap: 20px;
+    padding: 28px;
+  }
+
+  .author-avatar {
+    width: 76px;
+    height: 76px;
+    font-size: 30px;
+  }
+
+  .author-info {
+    width: auto;
+  }
+
+  .author-info h1 {
+    font-size: 32px;
+  }
+
+  .author-stat {
+    width: auto;
+    min-width: 120px;
+  }
+
+  .author-publications {
+    padding: 28px;
+  }
+
+  .author-actions {
+  width: auto;
+  align-items: stretch;
+  }
+
+  .author-back-button {
+    width: auto;
+  }
+
+  .section-heading {
+    align-items: center;
+    flex-direction: row;
+    gap: 20px;
+  }
+
+  .section-heading h2 {
+    font-size: 26px;
+  }
+
+  .state-card,
+  .empty-state {
+    padding: 50px 24px;
+  }
+
+  /* Tablet continúa con una sola columna */
+  .views-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================
+   ESCRITORIO
+   ========================= */
+
+@media (min-width: 1200px) {
+  .author-page {
+    padding: 50px 32px 80px;
+  }
+
+  .author-container {
+    max-width: 1450px;
+  }
+
+  .views-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* =========================
+   PANTALLAS GRANDES
+   ========================= */
+
+@media (min-width: 1600px) {
+  .author-container {
+    max-width: 1500px;
+  }
+}
+
+/* =========================
+   PANTALLAS MUY GRANDES
+   ========================= */
+
+@media (min-width: 1750px) {
+  .views-grid {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -456,36 +620,15 @@ onMounted(loadAuthorProfile)
   border-color: #34344b;
 }
 
-/* =========================
-   RESPONSIVE
-   ========================= */
+:global(html[data-theme='dark'] .author-back-button) {
+  border-color: #8b5cf6;
+  background: #7c3aed;
+  color: #ffffff;
+}
 
-@media (max-width: 650px) {
-  .author-page {
-    padding: 24px 14px 50px;
-  }
-
-  .author-header {
-    align-items: flex-start;
-    flex-direction: column;
-    padding: 22px;
-  }
-
-  .author-stat {
-    box-sizing: border-box;
-    width: 100%;
-  }
-
-  .author-publications {
-    padding: 20px;
-  }
-
-  .section-heading {
-    flex-direction: column;
-  }
-
-  .views-grid {
-    grid-template-columns: 1fr;
-  }
+:global(html[data-theme='dark'] .author-back-button:hover) {
+  border-color: #a78bfa;
+  background: #8b5cf6;
+  color: #ffffff;
 }
 </style>

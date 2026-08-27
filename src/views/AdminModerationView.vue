@@ -621,22 +621,33 @@ onMounted(loadViews)
 </template>
 
 <style scoped>
+/* =========================
+   MOBILE FIRST
+   Base: móvil
+   ========================= */
+
 .admin-page {
   min-height: 100vh;
-  padding: 40px 24px 70px;
+  padding: 28px 14px 50px;
   background: #f7f7fb;
 }
 
 .admin-container {
-  width: min(1180px, 100%);
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
 }
 
+/* =========================
+   ENCABEZADO
+   ========================= */
+
 .admin-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 24px;
+  flex-direction: column;
+  gap: 18px;
   margin-bottom: 24px;
 }
 
@@ -644,7 +655,7 @@ onMounted(loadViews)
   display: block;
   margin-bottom: 7px;
   color: #7c3aed;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.12em;
 }
@@ -653,16 +664,19 @@ onMounted(loadViews)
   margin: 0;
   color: #18181b;
   font-size: 30px;
+  line-height: 1.2;
 }
 
 .admin-header p {
   margin: 8px 0 0;
   color: #71717a;
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 .total-card {
-  min-width: 110px;
+  box-sizing: border-box;
+  width: 100%;
   padding: 15px 20px;
   border: 1px solid #e4e4e7;
   border-radius: 14px;
@@ -673,18 +687,21 @@ onMounted(loadViews)
 .total-card strong {
   display: block;
   color: #7c3aed;
-  font-size: 25px;
+  font-size: 27px;
 }
 
 .total-card span {
   color: #71717a;
-  font-size: 12px;
+  font-size: 13px;
 }
+
+/* =========================
+   ESTADÍSTICAS
+   ========================= */
 
 .stats-grid {
   display: grid;
-  grid-template-columns:
-    repeat(3, 1fr);
+  grid-template-columns: 1fr;
   gap: 12px;
   margin-bottom: 18px;
 }
@@ -699,20 +716,28 @@ onMounted(loadViews)
 .stat-card strong {
   display: block;
   color: #7c3aed;
-  font-size: 24px;
+  font-size: 26px;
 }
 
 .stat-card span {
   color: #71717a;
-  font-size: 12px;
+  font-size: 13px;
 }
 
+/* =========================
+   PANEL
+   ========================= */
+
 .admin-panel {
-  padding: 24px;
+  padding: 18px;
   border: 1px solid #e4e4e7;
   border-radius: 18px;
   background: #ffffff;
 }
+
+/* =========================
+   FILTROS
+   ========================= */
 
 .filters {
   display: flex;
@@ -728,7 +753,7 @@ onMounted(loadViews)
   background: #ffffff;
   color: #52525b;
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -739,12 +764,19 @@ onMounted(loadViews)
   color: #6d28d9;
 }
 
+/* =========================
+   TABLA
+   ========================= */
+
 .table-wrapper {
+  width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 table {
   width: 100%;
+  min-width: 900px;
   border-collapse: collapse;
 }
 
@@ -752,7 +784,7 @@ th {
   padding: 12px 10px;
   border-bottom: 1px solid #e4e4e7;
   color: #71717a;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.05em;
   text-align: left;
@@ -763,24 +795,26 @@ td {
   padding: 15px 10px;
   border-bottom: 1px solid #f1f1f4;
   color: #52525b;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .view-cell {
   display: flex;
-  min-width: 180px;
+  min-width: 200px;
   flex-direction: column;
   gap: 4px;
 }
 
 .view-cell strong {
   color: #27272a;
+  font-size: 14px;
 }
 
 .view-cell small {
   max-width: 230px;
   overflow: hidden;
   color: #a1a1aa;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -791,7 +825,7 @@ td {
   border-radius: 999px;
   background: #dcfce7;
   color: #166534;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -802,13 +836,13 @@ td {
 
 .reaction-count {
   display: inline-flex;
-  min-width: 30px;
+  min-width: 32px;
   justify-content: center;
   padding: 5px 8px;
   border-radius: 999px;
   background: #f4f4f5;
   color: #52525b;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -818,9 +852,18 @@ td {
 }
 
 .action-buttons {
-  display: flex;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: 72px 110px;
+  justify-content: end;
   gap: 7px;
+}
+
+.action-buttons .secondary-button,
+.action-buttons .primary-button,
+.action-buttons .danger-button {
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
 }
 
 .primary-button,
@@ -830,7 +873,7 @@ td {
   padding: 9px 12px;
   border-radius: 8px;
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -859,14 +902,20 @@ td {
   opacity: 0.5;
 }
 
+/* =========================
+   ESTADOS
+   ========================= */
+
 .state-container {
-  padding: 55px 20px;
+  padding: 45px 18px;
   color: #71717a;
+  font-size: 14px;
   text-align: center;
 }
 
 .state-container strong {
   color: #27272a;
+  font-size: 17px;
 }
 
 .loader {
@@ -879,19 +928,29 @@ td {
   animation: spin 0.7s linear infinite;
 }
 
+/* =========================
+   PAGINACIÓN
+   ========================= */
+
 .pagination {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
-  gap: 18px;
+  flex-direction: column;
+  gap: 14px;
   padding-top: 20px;
   color: #71717a;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .pagination-actions {
   display: flex;
+  width: 100%;
   gap: 8px;
+}
+
+.pagination-actions button {
+  flex: 1;
 }
 
 .pagination button {
@@ -906,7 +965,85 @@ td {
   }
 }
 
-/* Tema oscuro */
+/* =========================
+   TABLET
+   ========================= */
+
+@media (min-width: 701px) {
+  .admin-page {
+    padding: 40px 24px 70px;
+  }
+
+  .admin-container {
+    max-width: 1180px;
+  }
+
+  .admin-header {
+    align-items: center;
+    flex-direction: row;
+    gap: 24px;
+  }
+
+  .admin-header h1 {
+    font-size: 32px;
+  }
+
+  .total-card {
+    width: auto;
+    min-width: 120px;
+  }
+
+  .stats-grid {
+    grid-template-columns:
+      repeat(3, 1fr);
+  }
+
+  .admin-panel {
+    padding: 24px;
+  }
+
+  .pagination {
+    align-items: center;
+    flex-direction: row;
+    gap: 18px;
+  }
+
+  .pagination-actions {
+    width: auto;
+  }
+
+  .pagination-actions button {
+    flex: initial;
+  }
+}
+
+/* =========================
+   ESCRITORIO
+   ========================= */
+
+@media (min-width: 1200px) {
+  .admin-page {
+    padding: 50px 32px 80px;
+  }
+
+  .admin-container {
+    max-width: 1450px;
+  }
+}
+
+/* =========================
+   PANTALLAS GRANDES
+   ========================= */
+
+@media (min-width: 1600px) {
+  .admin-container {
+    max-width: 1500px;
+  }
+}
+
+/* =========================
+   TEMA OSCURO
+   ========================= */
 
 :global(html[data-theme='dark'] .admin-page) {
   background: #0f1020;
@@ -953,35 +1090,5 @@ td {
 :global(html[data-theme='dark'] .reaction-count) {
   background: #24243a;
   color: #d4d4d8;
-}
-
-/* Responsive */
-
-@media (max-width: 700px) {
-  .admin-page {
-    padding: 28px 14px 50px;
-  }
-
-  .admin-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .pagination {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .pagination-actions {
-    width: 100%;
-  }
-
-  .pagination-actions button {
-    flex: 1;
-  }
 }
 </style>

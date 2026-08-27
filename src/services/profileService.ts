@@ -50,7 +50,14 @@ export const getMyFavoriteIds = async (
     }
 
     const data: FavoritesResponse =
-      await response.json()
+    await response.json()
+
+    // Mantiene sincronizados los favoritos
+    // locales con la información real del API.
+    setStorage(
+      'lasdoscaras_favorites',
+      data.favorites,
+    )
 
     return data.favorites
   } catch (error) {
@@ -103,6 +110,19 @@ export const removeProfileFavorite = async (
         'No fue posible eliminar el favorito.',
       )
     }
+
+    // Mantiene sincronizado el caché local
+    const currentFavorites =
+      getStorage<string[]>(
+        'lasdoscaras_favorites',
+      ) ?? []
+
+    setStorage(
+      'lasdoscaras_favorites',
+      currentFavorites.filter(
+        (id) => id !== viewId,
+      ),
+    )
   } catch (error) {
     if (error instanceof TypeError) {
       throw new Error(

@@ -87,7 +87,7 @@ const toastStore = useToastStore()
   grid-template-columns:
     auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   padding: 14px;
   border: 1px solid #e4e4e7;
   border-radius: 12px;
@@ -103,6 +103,7 @@ const toastStore = useToastStore()
   height: 32px;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   border-radius: 50%;
   font-size: 15px;
   font-weight: 900;
@@ -113,7 +114,8 @@ const toastStore = useToastStore()
   color: #3f3f46;
   font-size: 14px;
   font-weight: 600;
-  line-height: 1.45;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .toast-close {
@@ -122,6 +124,7 @@ const toastStore = useToastStore()
   height: 32px;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   border: 0;
   border-radius: 7px;
   background: transparent;
@@ -187,7 +190,9 @@ const toastStore = useToastStore()
   transform: translateX(20px);
 }
 
-/* Mobile first */
+/* =========================
+   TABLET EN ADELANTE
+   ========================= */
 
 @media (min-width: 521px) {
   .toast-container {
@@ -198,11 +203,14 @@ const toastStore = useToastStore()
   }
 
   .toast {
+    gap: 14px;
     padding: 16px 16px 16px 18px;
   }
 }
 
-/* Tema oscuro */
+/* =========================
+   Tema oscuro
+   ========================= */
 
 :global(
   html[data-theme='dark']
