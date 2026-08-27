@@ -12,8 +12,13 @@ import type {
 } from '@/models/view'
 
 import {
+  getStorage,
+} from '@/utils/cache'
+
+import {
   addFavorite,
   removeFavorite,
+  saveFavoriteIds,
 } from '@/services/favoritesService'
 
 import { useAuthStore } from '@/stores/auth'
@@ -31,6 +36,11 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   'remove-favorite': [viewId: string]
+
+  'favorite-change': [
+    viewId: string,
+    isFavorite: boolean,
+  ]
 }>()
 
 const router = useRouter()
@@ -38,10 +48,14 @@ const authStore = useAuthStore()
 const toastStore = useToastStore()
 
 // Estado local del favorito
-const isFavorite = ref(props.view.isFavorite)
+const isFavorite = ref(
+  props.view.isFavorite,
+)
+
 const favoriteLoading = ref(false)
 
-// Mantiene sincronizado el estado si cambia la publicación
+// Mantiene sincronizado el estado
+// si cambia la publicación desde el padre
 watch(
   () => props.view.isFavorite,
   (newValue) => {
@@ -49,23 +63,46 @@ watch(
   },
 )
 
+// Al cerrar sesión, limpia visualmente
+// el estado de favoritos de la tarjeta
+watch(
+  () => authStore.isAuthenticated,
+  (authenticated) => {
+    if (!authenticated) {
+      isFavorite.value = false
+    }
+  },
+)
+
 // Obtiene el lado principal
-const sideA = computed<ViewSide | undefined>(() =>
+const sideA = computed<
+  ViewSide | undefined
+>(() =>
   props.view.sides.find(
-    (side) => side.type === 'SIDE',
+    (side) =>
+      side.type === 'SIDE',
   ),
 )
 
 // Obtiene la contraparte
-const sideB = computed<ViewSide | undefined>(() =>
+const sideB = computed<
+  ViewSide | undefined
+>(() =>
   props.view.sides.find(
-    (side) => side.type === 'COUNTERPART',
+    (side) =>
+      side.type === 'COUNTERPART',
   ),
 )
 
-// Escapa HTML para mostrar texto proveniente del API de forma segura
-const escapeHtml = (text: string): string => {
-  const characters: Record<string, string> = {
+// Escapa HTML para mostrar texto
+// proveniente del API de forma segura
+const escapeHtml = (
+  text: string,
+): string => {
+  const characters: Record<
+    string,
+    string
+  > = {
     '&': '&amp;',
     '<': '&lt;',
     '>': '&gt;',
@@ -76,27 +113,32 @@ const escapeHtml = (text: string): string => {
   return text.replace(
     /[&<>"']/g,
     (character) =>
-      characters[character] ?? character,
+      characters[character] ??
+      character,
   )
 }
 
-// Normaliza acentos para que "tecnologia"
-// también encuentre "tecnología"
+// Normaliza acentos para que
+// "tecnologia" encuentre "tecnología"
 const normalizeSearchText = (
   value: string,
 ): string => {
   return value
     .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
+    .replace(
+      /\p{Diacritic}/gu,
+      '',
+    )
     .toLowerCase()
 }
 
-// Resalta el término cuando la tarjeta se usa
-// dentro de los resultados de búsqueda
+// Resalta el término cuando la tarjeta
+// se usa dentro de resultados de búsqueda
 const highlightText = (
   text: string,
 ): string => {
-  const term = props.highlightTerm.trim()
+  const term =
+    props.highlightTerm.trim()
 
   if (!term) {
     return escapeHtml(text)
@@ -124,18 +166,23 @@ const highlightText = (
 
   while (matchIndex !== -1) {
     result += escapeHtml(
-      text.slice(position, matchIndex),
+      text.slice(
+        position,
+        matchIndex,
+      ),
     )
 
     result += `<mark>${escapeHtml(
       text.slice(
         matchIndex,
-        matchIndex + normalizedTerm.length,
+        matchIndex +
+          normalizedTerm.length,
       ),
     )}</mark>`
 
     position =
-      matchIndex + normalizedTerm.length
+      matchIndex +
+      normalizedTerm.length
 
     matchIndex =
       normalizedText.indexOf(
@@ -151,121 +198,208 @@ const highlightText = (
   return result
 }
 
-// Formatea la fecha para mostrarla al usuario
-const formattedDate = computed(() => {
-  return new Intl.DateTimeFormat('es-CR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(props.view.createdAt))
-})
+// Formatea la fecha
+const formattedDate = computed(
+  () => {
+    return new Intl.DateTimeFormat(
+      'es-CR',
+      {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      },
+    ).format(
+      new Date(
+        props.view.createdAt,
+      ),
+    )
+  },
+)
 
-// Agrega o elimina la publicación de favoritos
-const toggleFavorite = async (): Promise<void> => {
-  // Los favoritos requieren autenticación
-  if (
-    !authStore.isAuthenticated ||
-    !authStore.token
-  ) {
-    await router.push('/login')
+// Sincroniza los IDs de favoritos
+// guardados en Local Storage
+const updateFavoriteCache = (
+  viewId: string,
+  favorite: boolean,
+): void => {
+  const currentFavorites =
+    getStorage<string[]>(
+      'lasdoscaras_favorites',
+    ) ?? []
+
+  if (favorite) {
+    if (
+      !currentFavorites.includes(
+        viewId,
+      )
+    ) {
+      saveFavoriteIds([
+        ...currentFavorites,
+        viewId,
+      ])
+    }
+
     return
   }
 
-  if (favoriteLoading.value) {
-    return
-  }
-
-  favoriteLoading.value = true
-
-  try {
-    if (isFavorite.value) {
-      isFavorite.value = await removeFavorite(
-        props.view.id,
-        authStore.token,
-      )
-
-      emit(
-        'remove-favorite',
-        props.view.id,
-      )
-
-      toastStore.success(
-        'Publicación eliminada de favoritos.',
-      )
-    } else {
-      isFavorite.value = await addFavorite(
-        props.view.id,
-        authStore.token,
-      )
-
-      toastStore.success(
-        'Publicación guardada en favoritos.',
-      )
-    }
-  } catch (error) {
-    if (error instanceof Error) {
-      toastStore.error(error.message)
-    } else {
-      toastStore.error(
-        'Ocurrió un error inesperado.',
-      )
-    }
-  } finally {
-    favoriteLoading.value = false
-  }
+  saveFavoriteIds(
+    currentFavorites.filter(
+      (id) => id !== viewId,
+    ),
+  )
 }
 
-// Comparte la publicación o copia el enlace al portapapeles
-const shareView = async (): Promise<void> => {
-  const title =
-    sideA.value?.title ??
-    'Publicación de LasDosCaras'
-
-  const shareData = {
-    title,
-    text: `Mira esta publicación en LasDosCaras: ${title}`,
-    url: window.location.href,
-  }
-
-  // Primero intenta utilizar el menú nativo del navegador
-  if (typeof navigator.share === 'function') {
-    try {
-      await navigator.share(shareData)
-
-      toastStore.success(
-        'Publicación compartida.',
-      )
-
+// Agrega o elimina la publicación
+// de favoritos
+// Agrega o elimina la publicación
+// de favoritos
+const toggleFavorite =
+  async (): Promise<void> => {
+    if (
+      !authStore.isAuthenticated ||
+      !authStore.token
+    ) {
+      await router.push('/login')
       return
-    } catch (error) {
-      // Si el usuario cancela, no mostramos error
-      if (
-        error instanceof DOMException &&
-        error.name === 'AbortError'
-      ) {
-        return
-      }
+    }
 
-      // Si compartir falla, continuamos e intentamos copiar
+    if (favoriteLoading.value) {
+      return
+    }
+
+    favoriteLoading.value = true
+
+    try {
+      if (isFavorite.value) {
+        isFavorite.value =
+          await removeFavorite(
+            props.view.id,
+            authStore.token,
+          )
+
+        // Sincroniza Local Storage
+        updateFavoriteCache(
+          props.view.id,
+          false,
+        )
+
+        // Mantiene compatibilidad
+        // con la pestaña Mis favoritos
+        emit(
+          'remove-favorite',
+          props.view.id,
+        )
+
+        // Avisa a cualquier vista padre
+        emit(
+          'favorite-change',
+          props.view.id,
+          isFavorite.value,
+        )
+
+        toastStore.success(
+          'Publicación eliminada de favoritos.',
+        )
+      } else {
+        isFavorite.value =
+          await addFavorite(
+            props.view.id,
+            authStore.token,
+          )
+
+        // Sincroniza Local Storage
+        updateFavoriteCache(
+          props.view.id,
+          true,
+        )
+
+        // Avisa a cualquier vista padre
+        emit(
+          'favorite-change',
+          props.view.id,
+          isFavorite.value,
+        )
+
+        toastStore.success(
+          'Publicación guardada en favoritos.',
+        )
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        toastStore.error(
+          error.message,
+        )
+      } else {
+        toastStore.error(
+          'Ocurrió un error inesperado.',
+        )
+      }
+    } finally {
+      favoriteLoading.value =
+        false
     }
   }
 
-  // Si compartir no está disponible o falla,
-  // copiamos el enlace
-  try {
-    await navigator.clipboard.writeText(
-      shareData.url,
-    )
+// Comparte la publicación
+// o copia el enlace
+const shareView =
+  async (): Promise<void> => {
+    const title =
+      sideA.value?.title ??
+      'Publicación de LasDosCaras'
 
-    toastStore.success(
-      'Enlace copiado al portapapeles.',
-    )
-  } catch {
-    toastStore.error(
-      'No fue posible copiar el enlace.',
-    )
+    const shareData = {
+      title,
+      text:
+        `Mira esta publicación en LasDosCaras: ${title}`,
+      url: window.location.href,
+    }
+
+    // Web Share API
+    if (
+      typeof navigator.share ===
+      'function'
+    ) {
+      try {
+        await navigator.share(
+          shareData,
+        )
+
+        toastStore.success(
+          'Publicación compartida.',
+        )
+
+        return
+      } catch (error) {
+        // Si el usuario cancela,
+        // no mostramos error
+        if (
+          error instanceof
+            DOMException &&
+          error.name ===
+            'AbortError'
+        ) {
+          return
+        }
+      }
+    }
+
+    // Fallback: copiar enlace
+    try {
+      await navigator.clipboard
+        .writeText(
+          shareData.url,
+        )
+
+      toastStore.success(
+        'Enlace copiado al portapapeles.',
+      )
+    } catch {
+      toastStore.error(
+        'No fue posible copiar el enlace.',
+      )
+    }
   }
-}
 </script>
 
 <template>
@@ -492,6 +626,11 @@ const shareView = async (): Promise<void> => {
   color: #fef3c7;
 }
 
+/* =========================
+   MOBILE FIRST
+   Base: móvil
+   ========================= */
+
 .view-card {
   width: 100%;
   overflow: hidden;
@@ -511,18 +650,24 @@ const shareView = async (): Promise<void> => {
     0 14px 35px rgba(15, 16, 32, 0.1);
 }
 
+/* =========================
+   Encabezado
+   ========================= */
+
 .card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 20px;
-  padding: 22px 24px 14px;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 18px 14px;
 }
 
 .author-info {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 .author-avatar {
@@ -540,14 +685,14 @@ const shareView = async (): Promise<void> => {
       #7c3aed
     );
   color: #ffffff;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 800;
 }
 
 .author-name {
   margin: 0 0 3px;
   color: #18181b;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
 }
 
@@ -569,12 +714,16 @@ const shareView = async (): Promise<void> => {
 .publication-date {
   margin: 0;
   color: #a1a1aa;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .header-actions {
   display: flex;
+  width: 100%;
   align-items: center;
+  justify-content: flex-start;
+  flex-direction: row;
+  flex-wrap: wrap;
   gap: 9px;
 }
 
@@ -585,7 +734,7 @@ const shareView = async (): Promise<void> => {
   background: #f5f3ff;
   color: #6d28d9;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.3px;
   cursor: pointer;
@@ -597,7 +746,9 @@ const shareView = async (): Promise<void> => {
   color: #5b21b6;
 }
 
-/* Compartir */
+/* =========================
+   Compartir
+   ========================= */
 
 .share-button {
   display: flex;
@@ -609,7 +760,7 @@ const shareView = async (): Promise<void> => {
   background: #ffffff;
   color: #71717a;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   transition: 0.2s ease;
@@ -621,7 +772,9 @@ const shareView = async (): Promise<void> => {
   color: #6d28d9;
 }
 
-/* Favoritos */
+/* =========================
+   Favoritos
+   ========================= */
 
 .favorite-button {
   display: flex;
@@ -633,7 +786,7 @@ const shareView = async (): Promise<void> => {
   background: #ffffff;
   color: #71717a;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   transition: 0.2s ease;
@@ -641,8 +794,8 @@ const shareView = async (): Promise<void> => {
 
 .favorite-button:hover:not(:disabled) {
   border-color: #c4b5fd;
-  color: #6d28d9;
   background: #faf9ff;
+  color: #6d28d9;
 }
 
 .favorite-button.active {
@@ -657,37 +810,46 @@ const shareView = async (): Promise<void> => {
 }
 
 .favorite-star {
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1;
 }
+
+/* =========================
+   Hashtags
+   ========================= */
 
 .hashtags {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
-  padding: 0 24px 18px;
+  padding: 0 18px 18px;
 }
 
 .hashtag {
   color: #6366f1;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
 }
+
+/* =========================
+   Perspectivas
+   ========================= */
 
 .sides-container {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   border-top: 1px solid #eeeef4;
   border-bottom: 1px solid #eeeef4;
 }
 
 .side {
   min-width: 0;
-  padding: 25px 24px;
+  padding: 24px 18px;
 }
 
 .side-a {
+  border-bottom: 1px solid #e8e7ef;
   background:
     linear-gradient(
       145deg,
@@ -711,7 +873,7 @@ const shareView = async (): Promise<void> => {
   gap: 7px;
   margin-bottom: 13px;
   color: #71717a;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 1.4px;
 }
@@ -733,7 +895,7 @@ const shareView = async (): Promise<void> => {
 .side h2 {
   margin: 0 0 12px;
   color: #18181b;
-  font-size: 19px;
+  font-size: 20px;
   line-height: 1.35;
   letter-spacing: -0.3px;
 }
@@ -743,7 +905,7 @@ const shareView = async (): Promise<void> => {
   margin: 0;
   overflow: hidden;
   color: #71717a;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.7;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
@@ -752,10 +914,11 @@ const shareView = async (): Promise<void> => {
 
 .side-stats {
   display: flex;
+  flex-wrap: wrap;
   gap: 15px;
   margin-top: 20px;
   color: #71717a;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -773,17 +936,22 @@ const shareView = async (): Promise<void> => {
   border-radius: 50%;
   background: #18181b;
   color: #ffffff;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
   transform: translate(-50%, -50%);
 }
+
+/* =========================
+   Pie de tarjeta
+   ========================= */
 
 .card-footer {
   display: flex;
   min-height: 58px;
   align-items: center;
-  gap: 25px;
-  padding: 0 24px;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 15px 18px;
 }
 
 .card-stat {
@@ -791,24 +959,23 @@ const shareView = async (): Promise<void> => {
   align-items: center;
   gap: 7px;
   color: #a1a1aa;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .card-stat strong {
   color: #52525b;
-  font-size: 12px;
+  font-size: 14px;
 }
 
-/* Botón para abrir el detalle de la publicación */
 .detail-button {
   margin-left: auto;
-  padding: 8px 12px;
+  padding: 9px 13px;
   border: none;
   border-radius: 8px;
   background: #6d28d9;
   color: #ffffff;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
   cursor: pointer;
   transition: 0.2s ease;
@@ -821,46 +988,53 @@ const shareView = async (): Promise<void> => {
 .favorite-indicator {
   margin-left: auto;
   color: #7c3aed;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
 }
 
-@media (max-width: 650px) {
+/* =========================
+   TABLET
+   ========================= */
+
+@media (min-width: 651px) {
   .card-header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 14px;
+    align-items: center;
+    flex-direction: row;
+    gap: 20px;
+    padding: 22px 24px 14px;
   }
 
   .header-actions {
-    width: 100%;
-    align-items: center;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: flex-start;
+    width: auto;
+    justify-content: flex-end;
+  }
+
+  .hashtags {
+    padding-right: 24px;
+    padding-left: 24px;
   }
 
   .sides-container {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 
-  .side-divider {
-    top: 50%;
+  .side {
+    padding: 25px 24px;
   }
 
   .side-a {
-    border-bottom: 1px solid #e8e7ef;
+    border-bottom: none;
   }
 
   .card-footer {
-    flex-wrap: wrap;
-    gap: 14px;
-    padding-top: 15px;
-    padding-bottom: 15px;
+    gap: 25px;
+    padding: 0 24px;
   }
 }
 
-/* Tema oscuro */
+/* =========================
+   Tema oscuro
+   ========================= */
 
 :global(html[data-theme='dark'] .share-button) {
   border-color: #3f3f55;
@@ -935,6 +1109,7 @@ const shareView = async (): Promise<void> => {
 }
 
 :global(html[data-theme='dark'] .side-a) {
+  border-bottom-color: #29293d;
   background:
     linear-gradient(
       145deg,
@@ -1013,9 +1188,10 @@ const shareView = async (): Promise<void> => {
   color: #c4b5fd;
 }
 
-@media (max-width: 650px) {
+/* En tablet ya no existe la división horizontal */
+@media (min-width: 651px) {
   :global(html[data-theme='dark'] .side-a) {
-    border-bottom-color: #29293d;
+    border-bottom: none;
   }
 }
 </style>

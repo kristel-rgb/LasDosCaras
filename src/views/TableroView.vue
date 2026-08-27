@@ -5,6 +5,11 @@ import {
   ref,
 } from 'vue'
 
+import {
+  getHashtags,
+  type Hashtag,
+} from '@/services/hashtagsService'
+
 import AppNavbar from '@/components/AppNavbar.vue'
 import ViewCard from '@/components/ViewCard.vue'
 
@@ -32,6 +37,11 @@ const loadMoreError = ref('')
 // Categorías
 const categories = ref<Category[]>([])
 
+//Hashtags
+const hashtags = ref<Hashtag[]>([])
+const hashtagsLoading = ref(true)
+const hashtagSearch = ref('')
+
 // Filtros
 const selectedCategory = ref('')
 const selectedHashtags = ref<string[]>([])
@@ -54,6 +64,8 @@ const restoreFilters = (): void => {
 
   selectedHashtags.value =
     savedFilters.hashtags
+  hashtagSearch.value =
+    savedFilters.hashtags[0] ?? ''
 }
 
 // Búsqueda
@@ -80,7 +92,13 @@ const loadViews = async (): Promise<void> => {
     const response = await getViews(
       {
         category:
-          selectedCategory.value || undefined,
+          selectedCategory.value ||
+          undefined,
+
+        hashtag:
+          selectedHashtags.value[0] ||
+          undefined,
+
         sort: selectedSort.value,
         page: 1,
         limit: pageSize,
@@ -102,89 +120,172 @@ const loadViews = async (): Promise<void> => {
   }
 }
 
-// Carga la siguiente página y conserva las anteriores
-const loadMoreViews = async (): Promise<void> => {
-  if (
-    !hasMore.value ||
-    loadingMore.value
-  ) {
-    return
-  }
-
-  loadingMore.value = true
-  loadMoreError.value = ''
-
-  const nextPage = currentPage.value + 1
-
-  try {
-    const response = await getViews(
-      {
-        category:
-          selectedCategory.value || undefined,
-        sort: selectedSort.value,
-        page: nextPage,
-        limit: pageSize,
-      },
-      authStore.token ?? undefined,
-    )
-
-    views.value.push(...response.views)
-    totalViews.value = response.total
-    currentPage.value = nextPage
-  } catch (error) {
-    if (error instanceof Error) {
-      loadMoreError.value = error.message
-    } else {
-      loadMoreError.value =
-        'No fue posible cargar más publicaciones.'
+// Carga la siguiente página
+// conservando las publicaciones anteriores
+const loadMoreViews =
+  async (): Promise<void> => {
+    if (
+      !hasMore.value ||
+      loadingMore.value
+    ) {
+      return
     }
-  } finally {
-    loadingMore.value = false
+
+    loadingMore.value = true
+    loadMoreError.value = ''
+
+    const nextPage =
+      currentPage.value + 1
+
+    try {
+      const response = await getViews(
+        {
+          category:
+            selectedCategory.value ||
+            undefined,
+
+          hashtag:
+            selectedHashtags.value[0] ||
+            undefined,
+
+          sort: selectedSort.value,
+          page: nextPage,
+          limit: pageSize,
+        },
+        authStore.token ?? undefined,
+      )
+
+      views.value.push(
+        ...response.views,
+      )
+
+      totalViews.value =
+        response.total
+
+      currentPage.value =
+        nextPage
+    } catch (error) {
+      if (error instanceof Error) {
+        loadMoreError.value =
+          error.message
+      } else {
+        loadMoreError.value =
+          'No fue posible cargar más publicaciones.'
+      }
+    } finally {
+      loadingMore.value = false
+    }
   }
-}
 
-// Carga las categorías reales del API
-const loadCategories = async (): Promise<void> => {
-  categoriesLoading.value = true
+// Carga las categorías
+const loadCategories =
+  async (): Promise<void> => {
+    categoriesLoading.value = true
 
-  try {
-    const response = await getCategories()
+    try {
+      const response =
+        await getCategories()
 
-    categories.value = response.categories
-  } catch (error) {
-    console.error(
-      'No fue posible cargar las categorías.',
-      error,
-    )
-  } finally {
-    categoriesLoading.value = false
+      categories.value =
+        response.categories
+    } catch (error) {
+      console.error(
+        'No fue posible cargar las categorías.',
+        error,
+      )
+    } finally {
+      categoriesLoading.value =
+        false
+    }
   }
-}
 
-// Cambia la categoría y vuelve a la primera página
+// Carga los hashtags disponibles
+const loadHashtags =
+  async (): Promise<void> => {
+    hashtagsLoading.value = true
+
+    try {
+      const response =
+        await getHashtags()
+
+      hashtags.value =
+        response.hashtags
+    } catch (error) {
+      console.error(
+        'No fue posible cargar los hashtags.',
+        error,
+      )
+
+      hashtags.value = []
+    } finally {
+      hashtagsLoading.value =
+        false
+    }
+  }
+
+// Cambia la categoría
 const selectCategory = async (
   categoryId: string,
 ): Promise<void> => {
-  selectedCategory.value = categoryId
+  selectedCategory.value =
+    categoryId
 
   saveBoardFilters({
-    categoryId: selectedCategory.value,
-    sort: selectedSort.value,
-    hashtags: selectedHashtags.value,
+    categoryId:
+      selectedCategory.value,
+
+    sort:
+      selectedSort.value,
+
+    hashtags:
+      selectedHashtags.value,
   })
 
   await loadViews()
 }
 
-// Cambia el orden y vuelve a la primera página
-const handleSortChange = async (): Promise<void> => {
-  saveBoardFilters({
-    categoryId: selectedCategory.value,
-    sort: selectedSort.value,
-    hashtags: selectedHashtags.value,
-  })
-  await loadViews()
-}
+// Cambia el hashtag
+const handleHashtagChange =
+  async (): Promise<void> => {
+    const normalizedHashtag =
+      hashtagSearch.value
+        .trim()
+        .replace(/^#/, '')
+        .toLowerCase()
+
+    selectedHashtags.value =
+      normalizedHashtag
+        ? [normalizedHashtag]
+        : []
+
+    saveBoardFilters({
+      categoryId:
+        selectedCategory.value,
+      sort:
+        selectedSort.value,
+      hashtags:
+        selectedHashtags.value,
+    })
+
+    await loadViews()
+  }
+
+// Cambia el orden
+const handleSortChange =
+  async (): Promise<void> => {
+    saveBoardFilters({
+      categoryId:
+        selectedCategory.value,
+
+      sort:
+        selectedSort.value,
+
+      hashtags:
+        selectedHashtags.value,
+    })
+
+    await loadViews()
+  }
 
 // Carga inicial
 onMounted(async () => {
@@ -192,6 +293,7 @@ onMounted(async () => {
 
   await Promise.all([
     loadCategories(),
+    loadHashtags(),
     loadViews(),
   ])
 })
@@ -276,6 +378,35 @@ onMounted(async () => {
               {{ category.name }}
             </button>
           </div>
+        </div>
+
+        <div class="hashtag-section">
+          <label for="hashtag-filter">
+            Hashtag
+          </label>
+
+          <input
+            id="hashtag-filter"
+            v-model="hashtagSearch"
+            type="text"
+            list="dashboard-hashtags"
+            :disabled="hashtagsLoading"
+            placeholder="Buscar hashtag..."
+            @change="handleHashtagChange"
+            @keydown.enter.prevent="
+              handleHashtagChange
+            "
+          />
+
+          <datalist id="dashboard-hashtags">
+            <option
+              v-for="hashtag in hashtags"
+              :key="hashtag.id"
+              :value="hashtag.name"
+            >
+              #{{ hashtag.name }}
+            </option>
+          </datalist>
         </div>
 
         <div class="sort-section">
@@ -407,9 +538,14 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* =========================
+   MOBILE FIRST
+   Base: móvil
+   ========================= */
+
 .dashboard-page {
   min-height: calc(100vh - 72px);
-  padding: 55px 24px;
+  padding: 35px 16px;
   background: #f7f7fb;
   font-family:
     Inter,
@@ -422,15 +558,20 @@ onMounted(async () => {
 
 .dashboard-container {
   width: 100%;
-  max-width: 1050px;
+  max-width: 100%;
   margin: 0 auto;
 }
 
+/* =========================
+   Encabezado
+   ========================= */
+
 .dashboard-header {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 30px;
+  flex-direction: column;
+  gap: 18px;
   margin-bottom: 28px;
 }
 
@@ -438,7 +579,7 @@ onMounted(async () => {
   display: inline-block;
   margin-bottom: 9px;
   color: #6d28d9;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 900;
   letter-spacing: 2px;
 }
@@ -446,7 +587,8 @@ onMounted(async () => {
 .dashboard-header h1 {
   margin: 0 0 8px;
   color: #18181b;
-  font-size: 36px;
+  font-size: 30px;
+  line-height: 1.15;
   letter-spacing: -1.2px;
 }
 
@@ -454,8 +596,8 @@ onMounted(async () => {
   max-width: 620px;
   margin: 0;
   color: #71717a;
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 16px;
+  line-height: 1.65;
 }
 
 .results {
@@ -465,17 +607,20 @@ onMounted(async () => {
   border-radius: 20px;
   background: #ffffff;
   color: #71717a;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
-/* Filtros */
+/* =========================
+   Filtros
+   ========================= */
 
 .dashboard-controls {
   display: flex;
-  align-items: flex-end;
+  align-items: stretch;
   justify-content: space-between;
-  gap: 25px;
+  flex-direction: column;
+  gap: 20px;
   margin-bottom: 25px;
   padding: 18px 20px;
   border: 1px solid #e8e7ef;
@@ -489,14 +634,19 @@ onMounted(async () => {
 }
 
 .filter-label,
-.sort-section label {
+.sort-section label,
+.hashtag-section label {
   display: block;
   margin-bottom: 9px;
   color: #71717a;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.5px;
 }
+
+/* =========================
+   Categorías
+   ========================= */
 
 .category-list {
   display: flex;
@@ -511,7 +661,7 @@ onMounted(async () => {
   background: #ffffff;
   color: #71717a;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: 0.2s ease;
@@ -530,25 +680,69 @@ onMounted(async () => {
 
 .categories-loading {
   color: #a1a1aa;
-  font-size: 12px;
+  font-size: 14px;
 }
 
-.sort-section {
-  width: 170px;
+/* =========================
+   Hashtag
+   ========================= */
+
+.hashtag-section {
+  width: 100%;
   flex-shrink: 0;
 }
 
-.sort-section select {
+.hashtag-section input {
   box-sizing: border-box;
   width: 100%;
-  padding: 9px 11px;
+  padding: 10px 12px;
   border: 1px solid #e4e4e7;
   border-radius: 9px;
   outline: none;
   background: #fafafa;
   color: #52525b;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: 0.2s ease;
+}
+
+.hashtag-section input::placeholder {
+  color: #a1a1aa;
+}
+
+.hashtag-section input:focus {
+  border-color: #8b5cf6;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 3px rgba(124, 58, 237, 0.08);
+}
+
+.hashtag-section input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* =========================
+   Ordenamiento
+   ========================= */
+
+.sort-section {
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.sort-section select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e4e4e7;
+  border-radius: 9px;
+  outline: none;
+  background: #fafafa;
+  color: #52525b;
+  font-family: inherit;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -559,7 +753,9 @@ onMounted(async () => {
     0 0 0 3px rgba(124, 58, 237, 0.08);
 }
 
-/* Publicaciones */
+/* =========================
+   Publicaciones
+   ========================= */
 
 .views-list {
   display: flex;
@@ -567,7 +763,9 @@ onMounted(async () => {
   gap: 24px;
 }
 
-/* Cargar más */
+/* =========================
+   Cargar más
+   ========================= */
 
 .load-more-container {
   display: flex;
@@ -590,7 +788,7 @@ onMounted(async () => {
   background: #ffffff;
   color: #6d28d9;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   cursor: pointer;
   transition: 0.2s ease;
@@ -608,13 +806,13 @@ onMounted(async () => {
 
 .loaded-count {
   color: #a1a1aa;
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .load-more-error {
   margin: 18px 0 0;
   color: #b91c1c;
-  font-size: 12px;
+  font-size: 14px;
   text-align: center;
 }
 
@@ -627,7 +825,9 @@ onMounted(async () => {
   animation: spin 0.7s linear infinite;
 }
 
-/* Estados */
+/* =========================
+   Estados
+   ========================= */
 
 .state-container {
   display: flex;
@@ -636,7 +836,7 @@ onMounted(async () => {
   justify-content: center;
   flex-direction: column;
   gap: 12px;
-  padding: 40px;
+  padding: 30px 20px;
   border: 1px solid #e4e4e7;
   border-radius: 18px;
   background: #ffffff;
@@ -646,13 +846,13 @@ onMounted(async () => {
 
 .state-container strong {
   color: #27272a;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .state-container p {
   max-width: 450px;
   margin: 0;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.6;
 }
 
@@ -672,7 +872,8 @@ onMounted(async () => {
   border-radius: 8px;
   background: #6d28d9;
   color: #ffffff;
-  font-size: 12px;
+  font-family: inherit;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -687,34 +888,84 @@ onMounted(async () => {
   }
 }
 
-@media (max-width: 800px) {
-  .dashboard-controls {
-    align-items: stretch;
-    flex-direction: column;
-  }
+/* =========================
+   TABLET
+   701px en adelante
+   ========================= */
 
-  .sort-section {
-    width: 100%;
-  }
-}
-
-@media (max-width: 700px) {
+@media (min-width: 701px) {
   .dashboard-page {
-    padding: 35px 16px;
+    padding: 45px 24px;
+  }
+
+  .dashboard-container {
+    max-width: 1100px;
   }
 
   .dashboard-header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 18px;
+    align-items: flex-end;
+    flex-direction: row;
+    gap: 30px;
   }
 
   .dashboard-header h1 {
-    font-size: 30px;
+    font-size: 36px;
+  }
+
+  .state-container {
+    padding: 40px;
   }
 }
 
-/* Tema oscuro */
+/* =========================
+   TABLET GRANDE / LAPTOP
+   801px en adelante
+   ========================= */
+
+@media (min-width: 801px) {
+  .dashboard-controls {
+    align-items: flex-end;
+    flex-direction: row;
+    gap: 25px;
+  }
+
+  .hashtag-section {
+    width: 190px;
+  }
+
+  .sort-section {
+    width: 190px;
+  }
+}
+
+/* =========================
+   ESCRITORIO
+   1200px en adelante
+   ========================= */
+
+@media (min-width: 1200px) {
+  .dashboard-page {
+    padding: 55px 32px;
+  }
+
+  .dashboard-container {
+    max-width: 1450px;
+  }
+}
+
+/* =========================
+   PANTALLAS MUY GRANDES
+   ========================= */
+
+@media (min-width: 1600px) {
+  .dashboard-container {
+    max-width: 1500px;
+  }
+}
+
+/* =========================
+   Tema oscuro
+   ========================= */
 
 :global(html[data-theme='dark'] .dashboard-page) {
   background: #0f1020;
@@ -738,7 +989,9 @@ onMounted(async () => {
   color: #d4d4d8;
 }
 
-/* Filtros */
+/* =========================
+   Filtros - Tema oscuro
+   ========================= */
 
 :global(html[data-theme='dark'] .dashboard-controls) {
   border-color: #29293d;
@@ -746,9 +999,12 @@ onMounted(async () => {
 }
 
 :global(html[data-theme='dark'] .filter-label),
-:global(html[data-theme='dark'] .sort-section label) {
+:global(html[data-theme='dark'] .sort-section label),
+:global(html[data-theme='dark'] .hashtag-section label) {
   color: #a1a1aa;
 }
+
+/* Categorías */
 
 :global(html[data-theme='dark'] .category-button) {
   border-color: #343447;
@@ -772,6 +1028,30 @@ onMounted(async () => {
   color: #71717a;
 }
 
+/* Hashtag */
+
+:global(html[data-theme='dark'] .hashtag-section input) {
+  border-color: #343447;
+  background: #1b1b2d;
+  color: #d4d4d8;
+}
+
+:global(
+  html[data-theme='dark']
+    .hashtag-section input::placeholder
+) {
+  color: #71717a;
+}
+
+:global(html[data-theme='dark'] .hashtag-section input:focus) {
+  border-color: #8b5cf6;
+  background: #202033;
+  box-shadow:
+    0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+/* Ordenamiento */
+
 :global(html[data-theme='dark'] .sort-section select) {
   border-color: #343447;
   background: #1b1b2d;
@@ -784,7 +1064,9 @@ onMounted(async () => {
     0 0 0 3px rgba(139, 92, 246, 0.15);
 }
 
-/* Estados */
+/* =========================
+   Estados - Tema oscuro
+   ========================= */
 
 :global(html[data-theme='dark'] .state-container) {
   border-color: #29293d;
@@ -801,7 +1083,9 @@ onMounted(async () => {
   border-top-color: #a78bfa;
 }
 
-/* Cargar más */
+/* =========================
+   Cargar más - Tema oscuro
+   ========================= */
 
 :global(html[data-theme='dark'] .load-more-button) {
   border-color: #8b5cf6;
@@ -809,7 +1093,10 @@ onMounted(async () => {
   color: #c4b5fd;
 }
 
-:global(html[data-theme='dark'] .load-more-button:hover:not(:disabled)) {
+:global(
+  html[data-theme='dark']
+    .load-more-button:hover:not(:disabled)
+) {
   background: #7c3aed;
   color: #ffffff;
 }
