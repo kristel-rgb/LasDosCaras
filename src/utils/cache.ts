@@ -151,3 +151,61 @@ export const removeCacheByPrefix = (
     localStorage.removeItem(key)
   })
 }
+
+// Guarda datos persistentes sin TTL.
+// Se utiliza para auth, filtros, favoritos,
+// borrador, tema e historial.
+export const setStorage = <T>(
+  key: string,
+  value: T,
+): void => {
+  try {
+    const serialized =
+      typeof value === 'string'
+        ? value
+        : JSON.stringify(value)
+
+    localStorage.setItem(
+      key,
+      serialized,
+    )
+  } catch {
+    // Un fallo de localStorage no debe
+    // romper la aplicación.
+  }
+}
+
+// Recupera datos persistentes sin TTL.
+export const getStorage = <T>(
+  key: string,
+): T | null => {
+  try {
+    const stored =
+      localStorage.getItem(key)
+
+    if (stored === null) {
+      return null
+    }
+
+    try {
+      return JSON.parse(stored) as T
+    } catch {
+      // Permite valores simples como
+      // "light" y "dark".
+      return stored as T
+    }
+  } catch {
+    return null
+  }
+}
+
+// Elimina datos persistentes sin TTL.
+export const removeStorage = (
+  key: string,
+): void => {
+  try {
+    localStorage.removeItem(key)
+  } catch {
+    // La app continúa aunque storage falle.
+  }
+}

@@ -1,4 +1,9 @@
 import type { ViewFormPayload } from '@/models/viewForm'
+import {
+  getStorage,
+  removeStorage,
+  setStorage,
+} from '@/utils/cache'
 
 const DRAFT_KEY = 'lasdoscaras_draft'
 
@@ -17,9 +22,9 @@ export const saveViewDraft = (
       savedAt: new Date().toISOString(),
     }
 
-    localStorage.setItem(
+    setStorage(
       DRAFT_KEY,
-      JSON.stringify(draft),
+      draft,
     )
   } catch {
     // Un error de localStorage no debe impedir
@@ -28,22 +33,15 @@ export const saveViewDraft = (
 }
 
 // Recupera el borrador guardado
-export const getViewDraft = (): ViewDraft | null => {
-  try {
-    const storedDraft =
-      localStorage.getItem(DRAFT_KEY)
-
-    if (!storedDraft) {
-      return null
-    }
-
-    return JSON.parse(storedDraft) as ViewDraft
-  } catch {
-    return null
+export const getViewDraft =
+  (): ViewDraft | null => {
+    return getStorage<ViewDraft>(
+      DRAFT_KEY,
+    )
   }
-}
 
 // Elimina el borrador
-export const clearViewDraft = (): void => {
-  localStorage.removeItem(DRAFT_KEY)
-}
+export const clearViewDraft =
+  (): void => {
+    removeStorage(DRAFT_KEY)
+  }

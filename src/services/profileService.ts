@@ -2,6 +2,12 @@ import {
   apiFetch,
 } from '@/utils/network'
 
+import {
+  getStorage,
+  removeStorage,
+  setStorage,
+} from '@/utils/cache'
+
 // IDs de publicaciones favoritas del usuario
 export interface FavoritesResponse {
   favorites: string[]
@@ -115,25 +121,17 @@ export const removeProfileFavorite = async (
 }
 
 // Obtiene el historial local
-export const getLocalHistory = (): HistoryEntry[] => {
-  try {
-    const stored = localStorage.getItem(
-      'lasdoscaras_history',
-    )
+export const getLocalHistory =
+  (): HistoryEntry[] => {
+    const stored =
+      getStorage<HistoryEntry[]>(
+        'lasdoscaras_history',
+      )
 
-    if (!stored) {
-      return []
-    }
-
-    const parsed = JSON.parse(stored)
-
-    return Array.isArray(parsed)
-      ? parsed
+    return Array.isArray(stored)
+      ? stored
       : []
-  } catch {
-    return []
   }
-}
 
 export const saveHistoryEntry = (
   entry: Omit<HistoryEntry, 'fechaVista'>,
@@ -151,11 +149,9 @@ export const saveHistoryEntry = (
       fechaVista: new Date().toISOString(),
     })
 
-    localStorage.setItem(
+    setStorage(
       'lasdoscaras_history',
-      JSON.stringify(
-        filteredHistory.slice(0, 20),
-      ),
+      filteredHistory.slice(0, 20),
     )
   } catch {
     // El historial no debe impedir
@@ -164,8 +160,9 @@ export const saveHistoryEntry = (
 }
 
 // Limpia el historial local
-export const clearLocalHistory = (): void => {
-  localStorage.removeItem(
-    'lasdoscaras_history',
-  )
+export const clearLocalHistory =
+  (): void => {
+    removeStorage(
+      'lasdoscaras_history',
+    )
 }

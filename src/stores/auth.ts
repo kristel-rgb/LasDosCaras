@@ -3,6 +3,12 @@ import { ref } from 'vue'
 
 import type { User } from '@/models/auth'
 
+import {
+  getStorage,
+  removeStorage,
+  setStorage,
+} from '@/utils/cache'
+
 // Store global encargado de mantener la sesión del usuario
 export const useAuthStore = defineStore('auth', () => {
   // Token JWT recibido después de un login exitoso
@@ -21,12 +27,12 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated.value = true
 
     // Persistimos la sesión para recuperarla al recargar la página
-    localStorage.setItem(
+    setStorage(
       'lasdoscaras_auth',
-      JSON.stringify({
+      {
         token: newToken,
         user: newUser,
-      }),
+      },
     )
   }
 
@@ -36,29 +42,27 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     isAuthenticated.value = false
 
-    localStorage.removeItem('lasdoscaras_auth')
-    localStorage.removeItem('lasdoscaras_favorites')
+    removeStorage('lasdoscaras_auth')
+    removeStorage('lasdoscaras_favorites')
   }
 
   // Recupera la sesión guardada cuando la aplicación inicia
   const restoreSession = () => {
-  const storedSession = localStorage.getItem('lasdoscaras_auth')
+    const storedSession =
+    getStorage<{
+      token: string
+      user: User
+    }>(
+      'lasdoscaras_auth',
+    )
 
-  // Si no existe una sesión guardada, no hacemos nada
   if (!storedSession) {
     return
   }
 
-  try {
-    const parsedSession = JSON.parse(storedSession)
-
-    token.value = parsedSession.token
-    user.value = parsedSession.user
-    isAuthenticated.value = true
-  } catch {
-    // Si los datos guardados están corruptos, limpiamos la sesión
-    logout()
-  }
+  token.value = storedSession.token
+  user.value = storedSession.user
+  isAuthenticated.value = true
 }
 
   return {
