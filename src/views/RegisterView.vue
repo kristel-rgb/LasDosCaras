@@ -4,6 +4,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import {
   activateAccount,
   registerUser,
+  RegisterError,
 } from '@/services/registerService'
 
 // Datos del formulario
@@ -191,20 +192,52 @@ const handleRegister = async (): Promise<void> => {
 
     activationToken.value = response.activationToken
     accountCreated.value = true
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.message === 'El correo ya está registrado.') {
-        errors.email = error.message
-      } else {
-        errorMessage.value = error.message
+    } catch (error) {
+      if (error instanceof RegisterError) {
+        const apiFields =
+          error.fieldErrors
+
+        if (apiFields) {
+          if (apiFields.name?.length) {
+            errors.name =
+              apiFields.name.join(' ')
+          }
+
+          if (apiFields.email?.length) {
+            errors.email =
+              apiFields.email.join(' ')
+          }
+
+          if (apiFields.password?.length) {
+            errors.password =
+              apiFields.password.join(' ')
+          }
+        }
+
+        const hasFieldError =
+          Boolean(errors.name) ||
+          Boolean(errors.email) ||
+          Boolean(errors.password)
+
+        if (!hasFieldError) {
+          errorMessage.value =
+            error.message
+        }
+
+        return
       }
-    } else {
-      errorMessage.value = 'Ocurrió un error inesperado.'
+
+      if (error instanceof Error) {
+        errorMessage.value =
+          error.message
+      } else {
+        errorMessage.value =
+          'Ocurrió un error inesperado.'
+      }
+    } finally {
+      loading.value = false
     }
-  } finally {
-    loading.value = false
   }
-}
 
 // Activa la cuenta con el token devuelto por el registro
 const handleActivation = async (): Promise<void> => {

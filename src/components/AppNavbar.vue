@@ -27,6 +27,12 @@ const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const toastStore = useToastStore()
 
+// Texto local del buscador.
+// Permite que la navbar funcione incluso
+// cuando la vista padre no usa v-model.
+const localSearchQuery =
+  ref(props.searchQuery ?? '')
+
 const userMenuOpen = ref(false)
 const mobileMenuOpen = ref(false)
 
@@ -45,6 +51,20 @@ const searchResults = ref<SearchResponse>({
 let debounceTimer:
   | ReturnType<typeof setTimeout>
   | undefined
+
+  // Mantiene sincronizado el texto cuando
+  // una vista sí controla el buscador con v-model.
+  watch(
+    () => props.searchQuery,
+    (value) => {
+      if (
+        typeof value === 'string' &&
+        value !== localSearchQuery.value
+      ) {
+        localSearchQuery.value = value
+      }
+    },
+  )
 
 // Inicial del usuario para el avatar
 const userInitial = computed(() => {
@@ -88,10 +108,19 @@ const clearSearchResults = (): void => {
 }
 
 // Actualiza el texto escrito en el buscador
-const handleSearch = (event: Event): void => {
-  const input = event.target as HTMLInputElement
+const handleSearch = (
+  event: Event,
+): void => {
+  const input =
+    event.target as HTMLInputElement
 
-  emit('update:searchQuery', input.value)
+  localSearchQuery.value =
+    input.value
+
+  emit(
+    'update:searchQuery',
+    input.value,
+  )
 
   searchOpen.value = true
 }
@@ -122,7 +151,12 @@ const executeSearch = async (
         'Ocurrió un error durante la búsqueda.'
     }
 
-    clearSearchResults()
+    searchResults.value = {
+      views: [],
+      categories: [],
+      hashtags: [],
+      authors: [],
+    }
   } finally {
     searchLoading.value = false
   }
@@ -130,45 +164,52 @@ const executeSearch = async (
 
 // Observa lo que escribe el usuario y aplica debounce
 watch(
-  () => props.searchQuery,
+  localSearchQuery,
   (newQuery) => {
     if (debounceTimer) {
-      clearTimeout(debounceTimer)
+      clearTimeout(
+        debounceTimer,
+      )
     }
 
-    const term = newQuery?.trim() ?? ''
+    const term =
+      newQuery.trim()
 
     if (!term) {
       clearSearchResults()
       searchOpen.value = false
+      searchLoading.value = false
       return
     }
 
     searchOpen.value = true
 
-    debounceTimer = setTimeout(() => {
-      executeSearch(term)
-    }, 350)
+    debounceTimer =
+      setTimeout(() => {
+        void executeSearch(term)
+      }, 300)
   },
 )
 
 // Navega a la página completa de resultados
-const goToSearchResults = async (): Promise<void> => {
-  const term = props.searchQuery?.trim() ?? ''
+const goToSearchResults =
+  async (): Promise<void> => {
+    const term =
+      localSearchQuery.value.trim()
 
-  if (!term) {
-    return
+    if (!term) {
+      return
+    }
+
+    searchOpen.value = false
+
+    await router.push({
+      path: '/search',
+      query: {
+        q: term,
+      },
+    })
   }
-
-  searchOpen.value = false
-
-  await router.push({
-    path: '/search',
-    query: {
-      q: term,
-    },
-  })
-}
 
 // Cierra la sesión y mantiene al usuario en el tablero público
 const handleLogout = async (): Promise<void> => {
@@ -279,7 +320,7 @@ onBeforeUnmount(() => {
           </button>
 
           <input
-            :value="props.searchQuery"
+            :value="localSearchQuery"
             type="search"
             placeholder="Buscar publicaciones..."
             aria-label="Buscar publicaciones"
@@ -287,7 +328,7 @@ onBeforeUnmount(() => {
             @input="handleSearch"
             @focus="
               searchOpen =
-                Boolean(props.searchQuery?.trim())
+                Boolean(localSearchQuery.trim())
             "
             @keydown.esc="searchOpen = false"
             @keydown.enter.prevent="goToSearchResults"
@@ -298,7 +339,7 @@ onBeforeUnmount(() => {
         <div
           v-if="
             searchOpen &&
-            Boolean(props.searchQuery?.trim())
+            Boolean(localSearchQuery.trim())
           "
           class="search-dropdown"
         >

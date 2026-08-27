@@ -2,6 +2,7 @@
 
 import {
   computed,
+  onBeforeUnmount,
   onMounted,
   reactive,
   ref,
@@ -16,7 +17,7 @@ import type { ViewFormPayload } from '@/models/viewForm'
 
 import { getCategories } from '@/services/categoriesService'
 import {
-  getHashtags,
+  searchHashtags,
   type Hashtag,
 } from '@/services/hashtagsService'
 
@@ -82,6 +83,11 @@ const categoriesLoading = ref(false)
 const categoriesError = ref('')
 const hashtagInput = ref('')
 const availableHashtags = ref<Hashtag[]>([])
+const hashtagSearching = ref(false)
+
+let hashtagSearchTimer:
+  | ReturnType<typeof setTimeout>
+  | undefined
 
 // Estado principal del formulario
 const form = reactive<ViewFormPayload>({
@@ -199,15 +205,68 @@ const loadCategories = async (): Promise<void> => {
   }
 }
 
-const loadHashtags = async (): Promise<void> => {
-  try {
-    const response = await getHashtags()
+// Busca hashtags existentes mientras
+// el usuario escribe.
+const loadHashtagSuggestions =
+  async (
+    query: string,
+  ): Promise<void> => {
+    const normalizedQuery =
+      query
+        .trim()
+        .replace(/^#/, '')
 
-    availableHashtags.value = response.hashtags
-  } catch {
-    availableHashtags.value = []
+    if (!normalizedQuery) {
+      availableHashtags.value = []
+      hashtagSearching.value = false
+      return
+    }
+
+    hashtagSearching.value = true
+
+    try {
+      const response =
+        await searchHashtags(
+          normalizedQuery,
+        )
+
+      availableHashtags.value =
+        response.hashtags.filter(
+          (hashtag) =>
+            !form.hashtags?.includes(
+              hashtag.name,
+            ),
+        )
+    } catch {
+      availableHashtags.value = []
+    } finally {
+      hashtagSearching.value = false
+    }
   }
-}
+
+// Debounce del autocomplete
+watch(
+  hashtagInput,
+  (value) => {
+    if (hashtagSearchTimer) {
+      clearTimeout(
+        hashtagSearchTimer,
+      )
+    }
+
+    if (!value.trim()) {
+      availableHashtags.value = []
+      return
+    }
+
+    hashtagSearchTimer =
+      setTimeout(() => {
+        void loadHashtagSuggestions(
+          value,
+        )
+      }, 300)
+  },
+)
 
 // Agrega una nueva fuente a uno de los lados
 const addSource = (
@@ -275,6 +334,79 @@ const removeHashtag = (
   form.hashtags = form.hashtags?.filter(
     (item) => item !== hashtag,
   )
+}
+
+// Convierte una URL de YouTube
+// en una URL válida para iframe.
+const getYoutubeEmbedUrl = (
+  value: string,
+): string => {
+  if (!value.trim()) {
+    return ''
+  }
+
+  try {
+    const url = new URL(
+      value.trim(),
+    )
+
+    let videoId = ''
+
+    if (
+      url.hostname === 'youtu.be'
+    ) {
+      videoId =
+        url.pathname
+          .replace('/', '')
+          .trim()
+    }
+
+    if (
+      url.hostname.includes(
+        'youtube.com',
+      )
+    ) {
+      if (
+        url.pathname === '/watch'
+      ) {
+        videoId =
+          url.searchParams.get('v') ??
+          ''
+      }
+
+      if (
+        url.pathname.startsWith(
+          '/shorts/',
+        )
+      ) {
+        videoId =
+          url.pathname
+            .split('/')[2] ??
+          ''
+      }
+
+      if (
+        url.pathname.startsWith(
+          '/embed/',
+        )
+      ) {
+        videoId =
+          url.pathname
+            .split('/')[2] ??
+          ''
+      }
+    }
+
+    if (!videoId) {
+      return ''
+    }
+
+    return `https://www.youtube.com/embed/${encodeURIComponent(
+      videoId,
+    )}`
+  } catch {
+    return ''
+  }
 }
 
 // Valida que una URL use HTTP o HTTPS
@@ -659,15 +791,20 @@ const cancelForm = async (): Promise<void> => {
 }
 
 onMounted(async () => {
-  await Promise.all([
-    loadCategories(),
-    loadHashtags(),
-  ])
+  await loadCategories()
 
   if (isEditMode.value) {
     await loadExistingView()
   } else {
     restoreViewDraft()
+  }
+})
+
+onBeforeUnmount(() => {
+  if (hashtagSearchTimer) {
+    clearTimeout(
+      hashtagSearchTimer,
+    )
   }
 })
 </script>
@@ -953,15 +1090,34 @@ onMounted(async () => {
 
                 <div class="field">
                 <label>
-                    URL
+                  URL
                 </label>
 
                 <input
-                    v-model.trim="source.url"
-                    type="url"
-                    placeholder="https://..."
+                  v-model.trim="source.url"
+                  type="url"
+                  placeholder="https://..."
                 />
+
+                <div
+                  v-if="
+                    source.type === 'YOUTUBE' &&
+                    getYoutubeEmbedUrl(source.url)
+                  "
+                  class="youtube-preview"
+                >
+                  <iframe
+                    :src="
+                      getYoutubeEmbedUrl(
+                        source.url,
+                      )
+                    "
+                    title="Vista previa de YouTube del Lado A"
+                    loading="lazy"
+                    allowfullscreen
+                  ></iframe>
                 </div>
+              </div>
 
                 <div class="field">
                 <label>
@@ -1053,6 +1209,24 @@ onMounted(async () => {
                     type="url"
                     placeholder="https://..."
                 />
+                <div
+                  v-if="
+                    source.type === 'YOUTUBE' &&
+                    getYoutubeEmbedUrl(source.url)
+                  "
+                  class="youtube-preview"
+                >
+                  <iframe
+                    :src="
+                      getYoutubeEmbedUrl(
+                        source.url,
+                      )
+                    "
+                    title="Vista previa de YouTube del Lado B"
+                    loading="lazy"
+                    allowfullscreen
+                  ></iframe>
+                </div>
                 </div>
 
                 <div class="field">
@@ -1106,7 +1280,12 @@ onMounted(async () => {
               v-model="hashtagInput"
               type="text"
               list="available-hashtags"
-              placeholder="Ej. educación"
+              :placeholder="
+                hashtagSearching
+                  ? 'Buscando...'
+                  : 'Ej. educación'
+              "
+              autocomplete="off"
               @keydown="handleHashtagKeydown"
             />
 
@@ -1788,5 +1967,33 @@ onMounted(async () => {
   border-color: #343447;
   background: #1b1b2d;
   color: #d4d4d8;
+}
+
+/* =========================
+   Preview de YouTube
+   ========================= */
+
+.youtube-preview {
+  width: 100%;
+  margin-top: 12px;
+  overflow: hidden;
+  border: 1px solid #e4e4e7;
+  border-radius: 10px;
+  background: #18181b;
+  aspect-ratio: 16 / 9;
+}
+
+.youtube-preview iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+:global(
+  html[data-theme='dark']
+  .youtube-preview
+) {
+  border-color: #343447;
 }
 </style>

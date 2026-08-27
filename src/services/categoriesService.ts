@@ -5,6 +5,7 @@ import type {
 import {
   getCache,
   getStaleCache,
+  notifyStaleCacheUsage,
   setCache,
 } from '@/utils/cache'
 
@@ -76,6 +77,7 @@ export const getCategories =
         )
 
       if (staleCategories) {
+        notifyStaleCacheUsage()
         return staleCategories
       }
 

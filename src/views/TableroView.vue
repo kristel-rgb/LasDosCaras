@@ -6,6 +6,11 @@ import {
 } from 'vue'
 
 import {
+  useRoute,
+  useRouter,
+} from 'vue-router'
+
+import {
   getHashtags,
   type Hashtag,
 } from '@/services/hashtagsService'
@@ -23,6 +28,10 @@ import {
   getBoardFilters,
   saveBoardFilters,
 } from '@/services/filtersService'
+
+// URL y parámetros de la ruta actual
+const route = useRoute()
+const router = useRouter()
 
 // Publicaciones
 const views = ref<PoliticalView[]>([])
@@ -50,23 +59,106 @@ const selectedSort = ref<
 >('recent')
 
 const restoreFilters = (): void => {
-  const savedFilters = getBoardFilters()
+  const savedFilters =
+    getBoardFilters()
 
-  if (!savedFilters) {
-    return
+  // Primero recuperamos localStorage
+  if (savedFilters) {
+    selectedCategory.value =
+      savedFilters.categoryId
+
+    selectedSort.value =
+      savedFilters.sort
+
+    selectedHashtags.value =
+      savedFilters.hashtags
+
+    hashtagSearch.value =
+      savedFilters.hashtags[0] ?? ''
   }
 
-  selectedCategory.value =
-    savedFilters.categoryId
+  // Si existen filtros en la URL,
+  // tienen prioridad sobre localStorage.
+  const category =
+    route.query.category
 
-  selectedSort.value =
-    savedFilters.sort
+  if (typeof category === 'string') {
+    selectedCategory.value =
+      category
+  }
 
-  selectedHashtags.value =
-    savedFilters.hashtags
-  hashtagSearch.value =
-    savedFilters.hashtags[0] ?? ''
+  const hashtag =
+    route.query.hashtag
+
+  if (typeof hashtag === 'string') {
+    const normalizedHashtag =
+      hashtag
+        .trim()
+        .replace(/^#/, '')
+        .toLowerCase()
+
+    selectedHashtags.value =
+      normalizedHashtag
+        ? [normalizedHashtag]
+        : []
+
+    hashtagSearch.value =
+      normalizedHashtag
+  }
+
+  const sort =
+    route.query.sort
+
+  if (
+    sort === 'recent' ||
+    sort === 'likes' ||
+    sort === 'dislikes'
+  ) {
+    selectedSort.value =
+      sort
+  }
 }
+
+const syncFiltersToUrl =
+  async (): Promise<void> => {
+    const query:
+      Record<string, string> = {
+        sort: selectedSort.value,
+      }
+
+    if (selectedCategory.value) {
+      query.category =
+        selectedCategory.value
+    }
+
+    const hashtag =
+      selectedHashtags.value[0]
+
+    if (hashtag) {
+      query.hashtag =
+        hashtag
+    }
+
+    await router.replace({
+      query,
+    })
+  }
+
+const persistFilters =
+  async (): Promise<void> => {
+    saveBoardFilters({
+      categoryId:
+        selectedCategory.value,
+
+      sort:
+        selectedSort.value,
+
+      hashtags:
+        selectedHashtags.value,
+    })
+
+    await syncFiltersToUrl()
+  }
 
 // Búsqueda
 const searchQuery = ref('')
@@ -230,17 +322,7 @@ const selectCategory = async (
   selectedCategory.value =
     categoryId
 
-  saveBoardFilters({
-    categoryId:
-      selectedCategory.value,
-
-    sort:
-      selectedSort.value,
-
-    hashtags:
-      selectedHashtags.value,
-  })
-
+  await persistFilters()
   await loadViews()
 }
 
@@ -258,38 +340,33 @@ const handleHashtagChange =
         ? [normalizedHashtag]
         : []
 
-    saveBoardFilters({
-      categoryId:
-        selectedCategory.value,
-      sort:
-        selectedSort.value,
-      hashtags:
-        selectedHashtags.value,
-    })
+    hashtagSearch.value =
+      normalizedHashtag
 
+    await persistFilters()
     await loadViews()
-  }
+}
+
+const clearHashtag = async (): Promise<void> => {
+    hashtagSearch.value = ''
+    selectedHashtags.value = []
+
+    await persistFilters()
+    await loadViews()
+}
 
 // Cambia el orden
 const handleSortChange =
   async (): Promise<void> => {
-    saveBoardFilters({
-      categoryId:
-        selectedCategory.value,
-
-      sort:
-        selectedSort.value,
-
-      hashtags:
-        selectedHashtags.value,
-    })
-
+    await persistFilters()
     await loadViews()
   }
 
 // Carga inicial
 onMounted(async () => {
   restoreFilters()
+
+  await syncFiltersToUrl()
 
   await Promise.all([
     loadCategories(),
@@ -397,6 +474,27 @@ onMounted(async () => {
               handleHashtagChange
             "
           />
+
+          <div
+            v-if="selectedHashtags.length"
+            class="active-hashtags"
+          >
+            <span
+              v-for="hashtag in selectedHashtags"
+              :key="hashtag"
+              class="hashtag-chip"
+            >
+              #{{ hashtag }}
+
+              <button
+                type="button"
+                aria-label="Quitar filtro de hashtag"
+                @click="clearHashtag"
+              >
+                ×
+              </button>
+            </span>
+          </div>
 
           <datalist id="dashboard-hashtags">
             <option
@@ -723,6 +821,43 @@ onMounted(async () => {
   opacity: 0.6;
 }
 
+.active-hashtags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.hashtag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #ede9fe;
+  color: #6d28d9;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.hashtag-chip button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+:global(
+  html[data-theme='dark']
+  .hashtag-chip
+) {
+  background: #2e254f;
+  color: #c4b5fd;
+}
+
 /* =========================
    Ordenamiento
    ========================= */
@@ -923,6 +1058,12 @@ onMounted(async () => {
    ========================= */
 
 @media (min-width: 801px) {
+  .views-list {
+    display: grid;
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+    gap: 24px;
+  }
   .dashboard-controls {
     align-items: flex-end;
     flex-direction: row;

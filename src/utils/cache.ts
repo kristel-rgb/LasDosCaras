@@ -209,3 +209,14 @@ export const removeStorage = (
     // La app continúa aunque storage falle.
   }
 }
+
+// Informa a la UI que se están mostrando
+// datos guardados porque el API falló.
+export const notifyStaleCacheUsage =
+  (): void => {
+    window.dispatchEvent(
+      new CustomEvent(
+        'lasdoscaras:stale-cache',
+      ),
+    )
+  }

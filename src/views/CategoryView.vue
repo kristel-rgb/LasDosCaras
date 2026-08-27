@@ -18,6 +18,10 @@ import type { Category } from '@/models/category'
 import type { PoliticalView } from '@/models/view'
 
 import { getCategories } from '@/services/categoriesService'
+import {
+  getHashtags,
+  type Hashtag,
+} from '@/services/hashtagsService'
 import { getViews } from '@/services/viewsService'
 import { useAuthStore } from '@/stores/auth'
 
@@ -38,6 +42,12 @@ const pageSize = 5
 
 const loadingMore = ref(false)
 const loadMoreError = ref('')
+
+// Hashtags
+const hashtags = ref<Hashtag[]>([])
+const hashtagsLoading = ref(false)
+const hashtagSearch = ref('')
+const selectedHashtag = ref('')
 
 // Orden
 const selectedSort = ref<
@@ -62,166 +72,308 @@ const hasMore = computed(() => {
   return views.value.length < totalViews.value
 })
 
+// Recupera los filtros desde la URL
+const restoreQueryFilters = (): void => {
+  const sort = route.query.sort
+
+  if (
+    sort === 'recent' ||
+    sort === 'likes' ||
+    sort === 'dislikes'
+  ) {
+    selectedSort.value = sort
+  }
+
+  const hashtag = route.query.hashtag
+
+  if (typeof hashtag === 'string') {
+    selectedHashtag.value =
+      hashtag
+        .trim()
+        .replace(/^#/, '')
+        .toLowerCase()
+
+    hashtagSearch.value =
+      selectedHashtag.value
+  }
+}
+
+// Mantiene los filtros en la URL
+const syncQueryFilters =
+  async (): Promise<void> => {
+    const query: Record<string, string> = {}
+
+    if (selectedSort.value !== 'recent') {
+      query.sort = selectedSort.value
+    }
+
+    if (selectedHashtag.value) {
+      query.hashtag =
+        selectedHashtag.value
+    }
+
+    await router.replace({
+      query,
+    })
+  }
+
 // Obtiene los datos de la categoría actual
-const loadCategory = async (): Promise<boolean> => {
-  try {
-    const response = await getCategories()
+const loadCategory =
+  async (): Promise<boolean> => {
+    try {
+      const response =
+        await getCategories()
 
-    const foundCategory =
-      response.categories.find(
-        (item) =>
-          item.id === categoryId.value &&
-          !item.deletedAt,
-      )
+      const foundCategory =
+        response.categories.find(
+          (item) =>
+            item.id === categoryId.value &&
+            !item.deletedAt,
+        )
 
-    if (!foundCategory) {
+      if (!foundCategory) {
+        category.value = null
+
+        throw new Error(
+          'La categoría no fue encontrada.',
+        )
+      }
+
+      category.value = foundCategory
+
+      return true
+    } catch (error) {
       category.value = null
 
-      throw new Error(
-        'La categoría no fue encontrada.',
+      if (error instanceof Error) {
+        errorMessage.value =
+          error.message
+      } else {
+        errorMessage.value =
+          'No fue posible cargar la categoría.'
+      }
+
+      return false
+    }
+  }
+
+// Carga hashtags disponibles
+const loadHashtags =
+  async (): Promise<void> => {
+    hashtagsLoading.value = true
+
+    try {
+      const response =
+        await getHashtags()
+
+      hashtags.value =
+        response.hashtags
+    } catch (error) {
+      console.error(
+        'No fue posible cargar los hashtags.',
+        error,
       )
+
+      hashtags.value = []
+    } finally {
+      hashtagsLoading.value = false
     }
-
-    category.value = foundCategory
-
-    return true
-  } catch (error) {
-    category.value = null
-
-    if (error instanceof Error) {
-      errorMessage.value = error.message
-    } else {
-      errorMessage.value =
-        'No fue posible cargar la categoría.'
-    }
-
-    return false
-  }
-}
-
-// Carga la primera página de la categoría
-const loadViews = async (): Promise<void> => {
-  if (!categoryId.value) {
-    return
   }
 
-  loading.value = true
-  errorMessage.value = ''
-  loadMoreError.value = ''
-  currentPage.value = 1
-
-  try {
-    const response = await getViews(
-      {
-        category: categoryId.value,
-        sort: selectedSort.value,
-        page: 1,
-        limit: pageSize,
-      },
-      authStore.token ?? undefined,
-    )
-
-    views.value = response.views
-    totalViews.value = response.total
-  } catch (error) {
-    if (error instanceof Error) {
-      errorMessage.value = error.message
-    } else {
-      errorMessage.value =
-        'No fue posible cargar las publicaciones.'
+// Carga la primera página
+const loadViews =
+  async (): Promise<void> => {
+    if (!categoryId.value) {
+      return
     }
-  } finally {
-    loading.value = false
+
+    loading.value = true
+    errorMessage.value = ''
+    loadMoreError.value = ''
+    currentPage.value = 1
+
+    try {
+      const response =
+        await getViews(
+          {
+            category:
+              categoryId.value,
+
+            hashtag:
+              selectedHashtag.value ||
+              undefined,
+
+            sort:
+              selectedSort.value,
+
+            page: 1,
+            limit: pageSize,
+          },
+          authStore.token ??
+            undefined,
+        )
+
+      views.value =
+        response.views
+
+      totalViews.value =
+        response.total
+    } catch (error) {
+      if (error instanceof Error) {
+        errorMessage.value =
+          error.message
+      } else {
+        errorMessage.value =
+          'No fue posible cargar las publicaciones.'
+      }
+    } finally {
+      loading.value = false
+    }
   }
-}
 
 // Carga la siguiente página
-const loadMoreViews = async (): Promise<void> => {
-  if (
-    !hasMore.value ||
-    loadingMore.value ||
-    !categoryId.value
-  ) {
-    return
-  }
-
-  loadingMore.value = true
-  loadMoreError.value = ''
-
-  const nextPage =
-    currentPage.value + 1
-
-  try {
-    const response = await getViews(
-      {
-        category: categoryId.value,
-        sort: selectedSort.value,
-        page: nextPage,
-        limit: pageSize,
-      },
-      authStore.token ?? undefined,
-    )
-
-    views.value.push(...response.views)
-
-    totalViews.value =
-      response.total
-
-    currentPage.value =
-      nextPage
-  } catch (error) {
-    if (error instanceof Error) {
-      loadMoreError.value =
-        error.message
-    } else {
-      loadMoreError.value =
-        'No fue posible cargar más publicaciones.'
+const loadMoreViews =
+  async (): Promise<void> => {
+    if (
+      !hasMore.value ||
+      loadingMore.value ||
+      !categoryId.value
+    ) {
+      return
     }
-  } finally {
-    loadingMore.value = false
-  }
-}
 
-// Cambia el orden de las publicaciones
-const handleSortChange = async (): Promise<void> => {
-  await loadViews()
-}
+    loadingMore.value = true
+    loadMoreError.value = ''
+
+    const nextPage =
+      currentPage.value + 1
+
+    try {
+      const response =
+        await getViews(
+          {
+            category:
+              categoryId.value,
+
+            hashtag:
+              selectedHashtag.value ||
+              undefined,
+
+            sort:
+              selectedSort.value,
+
+            page:
+              nextPage,
+
+            limit:
+              pageSize,
+          },
+          authStore.token ??
+            undefined,
+        )
+
+      views.value.push(
+        ...response.views,
+      )
+
+      totalViews.value =
+        response.total
+
+      currentPage.value =
+        nextPage
+    } catch (error) {
+      if (error instanceof Error) {
+        loadMoreError.value =
+          error.message
+      } else {
+        loadMoreError.value =
+          'No fue posible cargar más publicaciones.'
+      }
+    } finally {
+      loadingMore.value = false
+    }
+  }
+
+// Aplica filtro por hashtag
+const handleHashtagChange =
+  async (): Promise<void> => {
+    selectedHashtag.value =
+      hashtagSearch.value
+        .trim()
+        .replace(/^#/, '')
+        .toLowerCase()
+
+    hashtagSearch.value =
+      selectedHashtag.value
+
+    await syncQueryFilters()
+    await loadViews()
+  }
+
+// Limpia filtro de hashtag
+const clearHashtag =
+  async (): Promise<void> => {
+    hashtagSearch.value = ''
+    selectedHashtag.value = ''
+
+    await syncQueryFilters()
+    await loadViews()
+  }
+
+// Cambia el orden
+const handleSortChange =
+  async (): Promise<void> => {
+    await syncQueryFilters()
+    await loadViews()
+  }
 
 // Carga toda la página
-const loadPage = async (): Promise<void> => {
-  loading.value = true
-  errorMessage.value = ''
+const loadPage =
+  async (): Promise<void> => {
+    loading.value = true
+    errorMessage.value = ''
 
-  if (!categoryId.value) {
-    errorMessage.value =
-      'El identificador de la categoría no es válido.'
+    if (!categoryId.value) {
+      errorMessage.value =
+        'El identificador de la categoría no es válido.'
 
-    loading.value = false
-    return
+      loading.value = false
+      return
+    }
+
+    const categoryLoaded =
+      await loadCategory()
+
+    if (!categoryLoaded) {
+      loading.value = false
+      return
+    }
+
+    await loadViews()
   }
-
-  const categoryLoaded =
-    await loadCategory()
-
-  if (!categoryLoaded) {
-    loading.value = false
-    return
-  }
-
-  await loadViews()
-}
 
 // Carga inicial
-onMounted(() => {
-  loadPage()
+onMounted(async () => {
+  restoreQueryFilters()
+
+  await Promise.all([
+    loadHashtags(),
+    loadPage(),
+  ])
 })
 
-// Si cambia el ID sin desmontar el componente,
-// vuelve a cargar la categoría
+// Si cambia la categoría,
+// vuelve a cargar toda la página
 watch(
   () => route.params.id,
-  () => {
-    loadPage()
+  async () => {
+    selectedHashtag.value = ''
+    hashtagSearch.value = ''
+    selectedSort.value = 'recent'
+
+    restoreQueryFilters()
+
+    await loadPage()
   },
 )
 </script>
@@ -231,7 +383,38 @@ watch(
 
   <main class="category-page">
     <section class="category-container">
-      <!-- Regresar -->
+      <!-- Breadcrumb -->
+      <nav
+        class="breadcrumbs"
+        aria-label="Migas de pan"
+      >
+        <RouterLink to="/">
+          Inicio
+        </RouterLink>
+
+        <span aria-hidden="true">
+          ›
+        </span>
+
+        <RouterLink to="/#categories">
+          Categorías
+        </RouterLink>
+
+        <span aria-hidden="true">
+          ›
+        </span>
+
+        <span
+          class="breadcrumb-current"
+          aria-current="page"
+        >
+          {{
+            category?.name ??
+            'Categoría'
+          }}
+        </span>
+      </nav>
+
       <button
         class="back-button"
         type="button"
@@ -270,40 +453,96 @@ watch(
         </div>
       </header>
 
-      <!-- Orden -->
+      <!-- Filtros y orden -->
       <section
         v-if="category && !loading"
         class="category-controls"
+        aria-label="Filtros de la categoría"
       >
-        <div>
+        <div class="category-control-info">
           <span class="control-title">
             Publicaciones de
             {{ category.name }}
           </span>
+
+          <span
+            v-if="selectedHashtag"
+            class="active-filter"
+          >
+            Filtrando por
+            #{{ selectedHashtag }}
+          </span>
         </div>
 
-        <div class="sort-section">
-          <label for="category-sort">
-            Ordenar por
-          </label>
+        <div class="category-filter-actions">
+          <!-- Hashtag -->
+          <div class="hashtag-section">
+            <label for="category-hashtag">
+              Hashtag
+            </label>
 
-          <select
-            id="category-sort"
-            v-model="selectedSort"
-            @change="handleSortChange"
-          >
-            <option value="recent">
-              Más recientes
-            </option>
+            <div class="hashtag-input-wrapper">
+              <input
+                id="category-hashtag"
+                v-model="hashtagSearch"
+                type="text"
+                list="category-hashtags"
+                :disabled="hashtagsLoading"
+                placeholder="Buscar hashtag..."
+                autocomplete="off"
+                @change="handleHashtagChange"
+                @keydown.enter.prevent="
+                  handleHashtagChange
+                "
+              />
 
-            <option value="likes">
-              Más likes
-            </option>
+              <button
+                v-if="selectedHashtag"
+                type="button"
+                class="clear-hashtag-button"
+                aria-label="Quitar filtro de hashtag"
+                title="Quitar filtro"
+                @click="clearHashtag"
+              >
+                ×
+              </button>
+            </div>
 
-            <option value="dislikes">
-              Más dislikes
-            </option>
-          </select>
+            <datalist id="category-hashtags">
+              <option
+                v-for="hashtag in hashtags"
+                :key="hashtag.id"
+                :value="hashtag.name"
+              >
+                #{{ hashtag.name }}
+              </option>
+            </datalist>
+          </div>
+
+          <!-- Orden -->
+          <div class="sort-section">
+            <label for="category-sort">
+              Ordenar por
+            </label>
+
+            <select
+              id="category-sort"
+              v-model="selectedSort"
+              @change="handleSortChange"
+            >
+              <option value="recent">
+                Más recientes
+              </option>
+
+              <option value="likes">
+                Más likes
+              </option>
+
+              <option value="dislikes">
+                Más dislikes
+              </option>
+            </select>
+          </div>
         </div>
       </section>
 
@@ -844,5 +1083,202 @@ watch(
 
 :global(html[data-theme='dark'] .load-more-error) {
   color: #f87171;
+}
+
+/* =========================
+   Breadcrumb
+   ========================= */
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 18px;
+  color: #71717a;
+  font-size: 13px;
+}
+
+.breadcrumbs a {
+  color: #6d28d9;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.breadcrumbs a:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-current {
+  color: #52525b;
+  font-weight: 700;
+}
+
+/* =========================
+   Filtro de hashtag
+   ========================= */
+
+.category-control-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.active-filter {
+  color: #7c3aed;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.category-filter-actions {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.hashtag-section {
+  width: 100%;
+}
+
+.hashtag-section label {
+  display: block;
+  margin-bottom: 8px;
+  color: #71717a;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.hashtag-input-wrapper {
+  position: relative;
+}
+
+.hashtag-section input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 38px 10px 12px;
+  border: 1px solid #e4e4e7;
+  border-radius: 9px;
+  outline: none;
+  background: #fafafa;
+  color: #52525b;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.hashtag-section input:focus {
+  border-color: #8b5cf6;
+  box-shadow:
+    0 0 0 3px
+    rgba(124, 58, 237, 0.08);
+}
+
+.hashtag-section input:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.clear-hashtag-button {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #71717a;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.clear-hashtag-button:hover {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+/* Tablet / escritorio */
+
+@media (min-width: 760px) {
+  .category-filter-actions {
+    width: auto;
+    min-width: 390px;
+    align-items: flex-end;
+    flex-direction: row;
+  }
+
+  .hashtag-section {
+    width: 210px;
+  }
+
+  .category-filter-actions .sort-section {
+    width: 170px;
+  }
+}
+
+/* Tema oscuro */
+
+:global(
+  html[data-theme='dark']
+  .breadcrumbs
+) {
+  color: #a1a1aa;
+}
+
+:global(
+  html[data-theme='dark']
+  .breadcrumbs a
+) {
+  color: #c4b5fd;
+}
+
+:global(
+  html[data-theme='dark']
+  .breadcrumb-current
+) {
+  color: #e4e4e7;
+}
+
+:global(
+  html[data-theme='dark']
+  .active-filter
+) {
+  color: #c4b5fd;
+}
+
+:global(
+  html[data-theme='dark']
+  .hashtag-section label
+) {
+  color: #a1a1aa;
+}
+
+:global(
+  html[data-theme='dark']
+  .hashtag-section input
+) {
+  border-color: #343447;
+  background: #171728;
+  color: #f4f4f5;
+}
+
+:global(
+  html[data-theme='dark']
+  .clear-hashtag-button
+) {
+  color: #a1a1aa;
+}
+
+:global(
+  html[data-theme='dark']
+  .clear-hashtag-button:hover
+) {
+  background: #292940;
+  color: #ddd6fe;
 }
 </style>

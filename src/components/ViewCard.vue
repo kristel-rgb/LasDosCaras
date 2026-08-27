@@ -47,9 +47,19 @@ const router = useRouter()
 const authStore = useAuthStore()
 const toastStore = useToastStore()
 
-// Estado local del favorito
+// Estado inicial del favorito tomado
+// del caché local del usuario.
+const cachedFavoriteIds =
+  getStorage<string[]>(
+    'lasdoscaras_favorites',
+  ) ?? []
+
 const isFavorite = ref(
-  props.view.isFavorite,
+  authStore.isAuthenticated
+    ? cachedFavoriteIds.includes(
+        props.view.id,
+      )
+    : false,
 )
 
 const favoriteLoading = ref(false)

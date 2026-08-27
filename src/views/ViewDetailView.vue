@@ -29,7 +29,12 @@ import type {
 import {
   addFavorite,
   removeFavorite,
+  saveFavoriteIds,
 } from '@/services/favoritesService'
+
+import {
+  getStorage,
+} from '@/utils/cache'
 
 import {
   getViewById,
@@ -74,6 +79,33 @@ const creatingThread = ref(false)
 const threads = ref<ViewThread[]>([])
 const threadsLoading = ref(false)
 const threadsError = ref('')
+
+// IDs de los hilos que están expandidos
+const expandedThreads =
+  ref<Set<string>>(new Set())
+
+const isThreadExpanded = (
+  threadId: string,
+): boolean => {
+  return expandedThreads.value.has(
+    threadId,
+  )
+}
+
+const toggleThread = (
+  threadId: string,
+): void => {
+  const updated =
+    new Set(expandedThreads.value)
+
+  if (updated.has(threadId)) {
+    updated.delete(threadId)
+  } else {
+    updated.add(threadId)
+  }
+
+  expandedThreads.value = updated
+}
 
 // Respuestas a los hilos
 const commentContents = ref<Record<string, string>>({})
@@ -152,8 +184,19 @@ const loadView = async (): Promise<void> => {
 
     saveToHistory(view.value)
 
-    isFavorite.value = view.value.isFavorite
-    await loadThreads()
+    const cachedFavorites =
+  getStorage<string[]>(
+    'lasdoscaras_favorites',
+  ) ?? []
+
+  isFavorite.value =
+    authStore.isAuthenticated
+      ? cachedFavorites.includes(
+          view.value.id,
+        )
+      : false
+
+  await loadThreads()
   } catch (error) {
     view.value = null
 
@@ -166,6 +209,37 @@ const loadView = async (): Promise<void> => {
   } finally {
     loading.value = false
   }
+}
+
+const updateFavoriteCache = (
+  viewId: string,
+  favorite: boolean,
+): void => {
+  const currentFavorites =
+    getStorage<string[]>(
+      'lasdoscaras_favorites',
+    ) ?? []
+
+  if (favorite) {
+    if (
+      !currentFavorites.includes(
+        viewId,
+      )
+    ) {
+      saveFavoriteIds([
+        ...currentFavorites,
+        viewId,
+      ])
+    }
+
+    return
+  }
+
+  saveFavoriteIds(
+    currentFavorites.filter(
+      (id) => id !== viewId,
+    ),
+  )
 }
 
 // Agrega o elimina la publicación de favoritos
@@ -195,6 +269,11 @@ const toggleFavorite = async (): Promise<void> => {
         authStore.token,
       )
 
+      updateFavoriteCache(
+        view.value.id,
+        false,
+      )
+
       toastStore.success(
         'Publicación eliminada de favoritos.',
       )
@@ -202,6 +281,11 @@ const toggleFavorite = async (): Promise<void> => {
       isFavorite.value = await addFavorite(
         view.value.id,
         authStore.token,
+      )
+
+      updateFavoriteCache(
+        view.value.id,
+        true,
       )
 
       toastStore.success(
@@ -750,6 +834,7 @@ onMounted(() => {
           <!-- Acciones -->
           <div class="publication-actions">
             <button
+              v-if="authStore.isAuthenticated"
               type="button"
               class="action-button"
               :class="{ active: isFavorite }"
@@ -1083,9 +1168,28 @@ onMounted(() => {
               :key="thread.id"
               class="thread-card"
             >
-              <h3>
-                {{ thread.title }}
-              </h3>
+              <button
+                type="button"
+                class="thread-toggle"
+                :aria-expanded="
+                  isThreadExpanded(thread.id)
+                "
+                @click="
+                  toggleThread(thread.id)
+                "
+              >
+                <span>
+                  {{ thread.title }}
+                </span>
+
+                <span aria-hidden="true">
+                  {{
+                    isThreadExpanded(thread.id)
+                      ? '−'
+                      : '+'
+                  }}
+                </span>
+              </button>
 
               <p class="thread-date">
                 {{
@@ -1101,6 +1205,13 @@ onMounted(() => {
                   )
                 }}
               </p>
+
+              <div
+                v-if="
+                  isThreadExpanded(thread.id)
+                "
+                class="thread-content"
+              >
 
               <!-- Comentarios del hilo -->
               <div
@@ -1167,7 +1278,23 @@ onMounted(() => {
                   }}
                 </button>
               </form>
+              </div>
             </article>
+          </div>
+
+          <div
+            class="moderation-warning"
+            role="status"
+          >
+            <strong>
+              Moderación de comentarios
+            </strong>
+
+            <p>
+              Los comentarios pueden ser revisados
+              mediante moderación automatizada antes
+              de su publicación definitiva.
+            </p>
           </div>
 
           <!-- Crear hilo -->
@@ -2456,5 +2583,61 @@ onMounted(() => {
     .reply-form textarea::placeholder
 ) {
   color: #707084;
+}
+
+.thread-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+
+.thread-toggle:focus-visible {
+  outline: 3px solid rgba(124, 58, 237, 0.25);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+
+.thread-content {
+  margin-top: 16px;
+}
+
+.moderation-warning {
+  margin-top: 24px;
+  padding: 14px 16px;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.moderation-warning strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.moderation-warning p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+:global(
+  html[data-theme='dark']
+  .moderation-warning
+) {
+  border-color: #854d0e;
+  background: #2d2412;
+  color: #fde68a;
 }
 </style>

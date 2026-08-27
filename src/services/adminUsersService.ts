@@ -39,6 +39,12 @@ export const getAdminUsers = async (
     },
   )
 
+  if (response.status === 403) {
+    throw new Error(
+      'No tienes permiso para acceder a la gestión de usuarios.',
+    )
+  }
+
   if (!response.ok) {
     throw new Error(
       'No fue posible cargar los usuarios.',
@@ -62,6 +68,18 @@ export const banAdminUser = async (
       },
     },
   )
+
+  if (response.status === 403) {
+    throw new Error(
+      'No tienes permiso para suspender usuarios.',
+    )
+  }
+
+  if (response.status === 404) {
+    throw new Error(
+      'El usuario que intentas suspender no existe.',
+    )
+  }
 
   if (!response.ok) {
     throw new Error(
@@ -89,6 +107,18 @@ export const unbanAdminUser = async (
       },
     },
   )
+
+  if (response.status === 403) {
+    throw new Error(
+      'No tienes permiso para reactivar usuarios.',
+    )
+  }
+
+  if (response.status === 404) {
+    throw new Error(
+      'El usuario que intentas reactivar no existe.',
+    )
+  }
 
   if (!response.ok) {
     throw new Error(

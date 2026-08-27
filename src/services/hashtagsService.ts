@@ -1,6 +1,7 @@
 import {
   getCache,
   getStaleCache,
+  notifyStaleCacheUsage,
   setCache,
 } from '@/utils/cache'
 
@@ -77,6 +78,8 @@ export const getHashtags =
         )
 
       if (staleHashtags) {
+        notifyStaleCacheUsage()
+
         return staleHashtags
       }
 
@@ -88,4 +91,38 @@ export const getHashtags =
         'No fue posible conectar con el servidor.',
       )
     }
+  }
+
+// Busca hashtags por texto para autocompletado
+export const searchHashtags =
+  async (
+    query: string,
+  ): Promise<HashtagsResponse> => {
+    const normalizedQuery =
+      query
+        .trim()
+        .replace(/^#/, '')
+
+    if (!normalizedQuery) {
+      return {
+        hashtags: [],
+      }
+    }
+
+    const params =
+      new URLSearchParams({
+        q: normalizedQuery,
+      })
+
+    const response = await apiFetch(
+      `${API_URL}/api/hashtags?${params.toString()}`,
+    )
+
+    if (!response.ok) {
+      throw new Error(
+        'No fue posible buscar hashtags.',
+      )
+    }
+
+    return await response.json()
   }
