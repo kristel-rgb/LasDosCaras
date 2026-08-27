@@ -48,6 +48,27 @@ const hashtags = ref<Hashtag[]>([])
 const hashtagsLoading = ref(false)
 const hashtagSearch = ref('')
 const selectedHashtag = ref('')
+const hashtagSuggestionsOpen = ref(false)
+
+// Sugerencias filtradas del hashtag
+const filteredHashtags = computed(() => {
+  const search = hashtagSearch.value
+    .trim()
+    .replace(/^#/, '')
+    .toLowerCase()
+
+  if (!search) {
+    return []
+  }
+
+  return hashtags.value
+    .filter((hashtag) =>
+      hashtag.name
+        .toLowerCase()
+        .includes(search),
+    )
+    .slice(0, 6)
+})
 
 // Orden
 const selectedSort = ref<
@@ -294,7 +315,7 @@ const loadMoreViews =
     }
   }
 
-// Aplica filtro por hashtag
+// Aplica filtro por hashtag escrito manualmente
 const handleHashtagChange =
   async (): Promise<void> => {
     selectedHashtag.value =
@@ -306,15 +327,40 @@ const handleHashtagChange =
     hashtagSearch.value =
       selectedHashtag.value
 
+    hashtagSuggestionsOpen.value = false
+
     await syncQueryFilters()
     await loadViews()
   }
+
+// Selecciona un hashtag de las sugerencias
+const selectHashtag = async (
+  hashtag: string,
+): Promise<void> => {
+  const normalizedHashtag =
+    hashtag
+      .trim()
+      .replace(/^#/, '')
+      .toLowerCase()
+
+  hashtagSearch.value =
+    normalizedHashtag
+
+  selectedHashtag.value =
+    normalizedHashtag
+
+  hashtagSuggestionsOpen.value = false
+
+  await syncQueryFilters()
+  await loadViews()
+}
 
 // Limpia filtro de hashtag
 const clearHashtag =
   async (): Promise<void> => {
     hashtagSearch.value = ''
     selectedHashtag.value = ''
+    hashtagSuggestionsOpen.value = false
 
     await syncQueryFilters()
     await loadViews()
@@ -369,6 +415,7 @@ watch(
   async () => {
     selectedHashtag.value = ''
     hashtagSearch.value = ''
+    hashtagSuggestionsOpen.value = false
     selectedSort.value = 'recent'
 
     restoreQueryFilters()
@@ -481,42 +528,72 @@ watch(
               Hashtag
             </label>
 
-            <div class="hashtag-input-wrapper">
-              <input
-                id="category-hashtag"
-                v-model="hashtagSearch"
-                type="text"
-                list="category-hashtags"
-                :disabled="hashtagsLoading"
-                placeholder="Buscar hashtag..."
-                autocomplete="off"
-                @change="handleHashtagChange"
-                @keydown.enter.prevent="
-                  handleHashtagChange
+            <div class="hashtag-combobox">
+              <div class="hashtag-input-wrapper">
+                <input
+                  id="category-hashtag"
+                  v-model="hashtagSearch"
+                  type="text"
+                  :disabled="hashtagsLoading"
+                  placeholder="Buscar hashtag..."
+                  autocomplete="off"
+                  role="combobox"
+                  aria-autocomplete="list"
+                  :aria-expanded="
+                    hashtagSuggestionsOpen &&
+                    filteredHashtags.length > 0
+                  "
+                  aria-controls="category-hashtag-suggestions"
+                  @input="
+                    hashtagSuggestionsOpen = true
+                  "
+                  @focus="
+                    hashtagSuggestionsOpen =
+                      hashtagSearch.trim().length > 0
+                  "
+                  @keydown.enter.prevent="
+                    handleHashtagChange
+                  "
+                  @keydown.esc="
+                    hashtagSuggestionsOpen = false
+                  "
+                />
+
+                <button
+                  v-if="hashtagSearch"
+                  type="button"
+                  class="clear-hashtag-button"
+                  aria-label="Quitar filtro de hashtag"
+                  title="Quitar filtro"
+                  @click="clearHashtag"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div
+                v-if="
+                  hashtagSuggestionsOpen &&
+                  filteredHashtags.length > 0
                 "
-              />
-
-              <button
-                v-if="selectedHashtag"
-                type="button"
-                class="clear-hashtag-button"
-                aria-label="Quitar filtro de hashtag"
-                title="Quitar filtro"
-                @click="clearHashtag"
+                id="category-hashtag-suggestions"
+                class="hashtag-suggestions"
+                role="listbox"
               >
-                ×
-              </button>
+                <button
+                  v-for="hashtag in filteredHashtags"
+                  :key="hashtag.id"
+                  type="button"
+                  class="hashtag-suggestion"
+                  role="option"
+                  @mousedown.prevent="
+                    selectHashtag(hashtag.name)
+                  "
+                >
+                  #{{ hashtag.name }}
+                </button>
+              </div>
             </div>
-
-            <datalist id="category-hashtags">
-              <option
-                v-for="hashtag in hashtags"
-                :key="hashtag.id"
-                :value="hashtag.name"
-              >
-                #{{ hashtag.name }}
-              </option>
-            </datalist>
           </div>
 
           <!-- Orden -->
@@ -645,11 +722,6 @@ watch(
 </template>
 
 <style scoped>
-/* =========================
-   MOBILE FIRST
-   Base: móvil
-   ========================= */
-
 .category-page {
   min-height: calc(100vh - 72px);
   padding: 35px 16px;
@@ -669,9 +741,7 @@ watch(
   margin: 0 auto;
 }
 
-/* =========================
-   Volver
-   ========================= */
+/* Volver */
 
 .back-button {
   margin-bottom: 28px;
@@ -692,9 +762,7 @@ watch(
   color: #6d28d9;
 }
 
-/* =========================
-   Encabezado
-   ========================= */
+/* Encabezado */
 
 .category-header {
   display: flex;
@@ -741,9 +809,7 @@ watch(
   font-weight: 700;
 }
 
-/* =========================
-   Controles
-   ========================= */
+/* Controles */
 
 .category-controls {
   display: flex;
@@ -763,6 +829,136 @@ watch(
   font-size: 14px;
   font-weight: 800;
 }
+
+.category-control-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.active-filter {
+  color: #7c3aed;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.category-filter-actions {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Hashtag */
+
+.hashtag-section {
+  width: 100%;
+}
+
+.hashtag-section label {
+  display: block;
+  margin-bottom: 8px;
+  color: #71717a;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.hashtag-combobox {
+  position: relative;
+  width: 100%;
+}
+
+.hashtag-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.hashtag-section input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 38px 10px 12px;
+  border: 1px solid #e4e4e7;
+  border-radius: 9px;
+  outline: none;
+  background: #fafafa;
+  color: #52525b;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.hashtag-section input:focus {
+  border-color: #8b5cf6;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 3px rgba(124, 58, 237, 0.08);
+}
+
+.hashtag-section input:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.clear-hashtag-button {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #71717a;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.clear-hashtag-button:hover {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.hashtag-suggestions {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 5px);
+  left: 0;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid #e4e4e7;
+  border-radius: 9px;
+  background: #ffffff;
+  box-shadow:
+    0 10px 25px rgba(0, 0, 0, 0.12);
+}
+
+.hashtag-suggestion {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  color: #52525b;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hashtag-suggestion:hover,
+.hashtag-suggestion:focus {
+  outline: none;
+  background: #f5f3ff;
+  color: #6d28d9;
+}
+
+/* Orden */
 
 .sort-section {
   width: 100%;
@@ -797,9 +993,7 @@ watch(
     0 0 0 3px rgba(124, 58, 237, 0.08);
 }
 
-/* =========================
-   Publicaciones
-   ========================= */
+/* Publicaciones */
 
 .views-list {
   display: flex;
@@ -807,9 +1001,7 @@ watch(
   gap: 24px;
 }
 
-/* =========================
-   Estados
-   ========================= */
+/* Estados */
 
 .state-container {
   display: flex;
@@ -863,9 +1055,7 @@ watch(
   background: #5b21b6;
 }
 
-/* =========================
-   Cargar más
-   ========================= */
+/* Cargar más */
 
 .load-more-container {
   display: flex;
@@ -917,9 +1107,34 @@ watch(
   }
 }
 
-/* =========================
-   TABLET
-   ========================= */
+/* Breadcrumb */
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 18px;
+  color: #71717a;
+  font-size: 13px;
+}
+
+.breadcrumbs a {
+  color: #6d28d9;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.breadcrumbs a:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-current {
+  color: #52525b;
+  font-weight: 700;
+}
+
+/* Tablet */
 
 @media (min-width: 701px) {
   .category-page {
@@ -945,9 +1160,24 @@ watch(
   }
 }
 
-/* =========================
-   TABLET GRANDE / LAPTOP
-   ========================= */
+/* Tablet grande / laptop */
+
+@media (min-width: 760px) {
+  .category-filter-actions {
+    width: auto;
+    min-width: 390px;
+    align-items: flex-end;
+    flex-direction: row;
+  }
+
+  .hashtag-section {
+    width: 210px;
+  }
+
+  .category-filter-actions .sort-section {
+    width: 170px;
+  }
+}
 
 @media (min-width: 801px) {
   .category-controls {
@@ -955,16 +1185,9 @@ watch(
     flex-direction: row;
     gap: 20px;
   }
-
-  .sort-section {
-    width: 190px;
-    flex-shrink: 0;
-  }
 }
 
-/* =========================
-   ESCRITORIO
-   ========================= */
+/* Escritorio */
 
 @media (min-width: 1200px) {
   .category-page {
@@ -976,9 +1199,7 @@ watch(
   }
 }
 
-/* =========================
-   PANTALLAS GRANDES
-   ========================= */
+/* Pantallas grandes */
 
 @media (min-width: 1600px) {
   .category-container {
@@ -986,9 +1207,7 @@ watch(
   }
 }
 
-/* =========================
-   Tema oscuro
-   ========================= */
+/* Tema oscuro */
 
 :global(html[data-theme='dark'] .category-page) {
   background: #0f1020;
@@ -1032,6 +1251,10 @@ watch(
   color: #d4d4d8;
 }
 
+:global(html[data-theme='dark'] .active-filter) {
+  color: #c4b5fd;
+}
+
 :global(html[data-theme='dark'] .sort-section label) {
   color: #a1a1aa;
 }
@@ -1046,6 +1269,57 @@ watch(
   border-color: #8b5cf6;
   box-shadow:
     0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+:global(html[data-theme='dark'] .hashtag-section label) {
+  color: #a1a1aa;
+}
+
+:global(html[data-theme='dark'] .hashtag-section input) {
+  border-color: #343447;
+  background: #171728;
+  color: #f4f4f5;
+}
+
+:global(html[data-theme='dark'] .hashtag-section input:focus) {
+  border-color: #8b5cf6;
+  background: #202033;
+}
+
+:global(html[data-theme='dark'] .clear-hashtag-button) {
+  color: #a1a1aa;
+}
+
+:global(html[data-theme='dark'] .clear-hashtag-button:hover) {
+  background: #292940;
+  color: #ddd6fe;
+}
+
+:global(html[data-theme='dark'] .hashtag-suggestions) {
+  border-color: #343447;
+  background: #1b1b2d;
+}
+
+:global(html[data-theme='dark'] .hashtag-suggestion) {
+  color: #d4d4d8;
+}
+
+:global(html[data-theme='dark'] .hashtag-suggestion:hover),
+:global(html[data-theme='dark'] .hashtag-suggestion:focus) {
+  background: #25243a;
+  color: #c4b5fd;
+}
+
+:global(html[data-theme='dark'] .breadcrumbs) {
+  color: #a1a1aa;
+}
+
+:global(html[data-theme='dark'] .breadcrumbs a) {
+  color: #c4b5fd;
+}
+
+:global(html[data-theme='dark'] .breadcrumb-current) {
+  color: #e4e4e7;
 }
 
 :global(html[data-theme='dark'] .state-container) {
@@ -1071,7 +1345,7 @@ watch(
 
 :global(
   html[data-theme='dark']
-  .load-more-button:hover:not(:disabled)
+    .load-more-button:hover:not(:disabled)
 ) {
   background: #7c3aed;
   color: #ffffff;
@@ -1083,202 +1357,5 @@ watch(
 
 :global(html[data-theme='dark'] .load-more-error) {
   color: #f87171;
-}
-
-/* =========================
-   Breadcrumb
-   ========================= */
-
-.breadcrumbs {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-bottom: 18px;
-  color: #71717a;
-  font-size: 13px;
-}
-
-.breadcrumbs a {
-  color: #6d28d9;
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.breadcrumbs a:hover {
-  text-decoration: underline;
-}
-
-.breadcrumb-current {
-  color: #52525b;
-  font-weight: 700;
-}
-
-/* =========================
-   Filtro de hashtag
-   ========================= */
-
-.category-control-info {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.active-filter {
-  color: #7c3aed;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.category-filter-actions {
-  display: flex;
-  width: 100%;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.hashtag-section {
-  width: 100%;
-}
-
-.hashtag-section label {
-  display: block;
-  margin-bottom: 8px;
-  color: #71717a;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.hashtag-input-wrapper {
-  position: relative;
-}
-
-.hashtag-section input {
-  box-sizing: border-box;
-  width: 100%;
-  padding: 10px 38px 10px 12px;
-  border: 1px solid #e4e4e7;
-  border-radius: 9px;
-  outline: none;
-  background: #fafafa;
-  color: #52525b;
-  font-family: inherit;
-  font-size: 14px;
-}
-
-.hashtag-section input:focus {
-  border-color: #8b5cf6;
-  box-shadow:
-    0 0 0 3px
-    rgba(124, 58, 237, 0.08);
-}
-
-.hashtag-section input:disabled {
-  cursor: not-allowed;
-  opacity: 0.65;
-}
-
-.clear-hashtag-button {
-  position: absolute;
-  top: 50%;
-  right: 8px;
-  display: flex;
-  width: 28px;
-  height: 28px;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  transform: translateY(-50%);
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: #71717a;
-  font-size: 20px;
-  cursor: pointer;
-}
-
-.clear-hashtag-button:hover {
-  background: #ede9fe;
-  color: #6d28d9;
-}
-
-/* Tablet / escritorio */
-
-@media (min-width: 760px) {
-  .category-filter-actions {
-    width: auto;
-    min-width: 390px;
-    align-items: flex-end;
-    flex-direction: row;
-  }
-
-  .hashtag-section {
-    width: 210px;
-  }
-
-  .category-filter-actions .sort-section {
-    width: 170px;
-  }
-}
-
-/* Tema oscuro */
-
-:global(
-  html[data-theme='dark']
-  .breadcrumbs
-) {
-  color: #a1a1aa;
-}
-
-:global(
-  html[data-theme='dark']
-  .breadcrumbs a
-) {
-  color: #c4b5fd;
-}
-
-:global(
-  html[data-theme='dark']
-  .breadcrumb-current
-) {
-  color: #e4e4e7;
-}
-
-:global(
-  html[data-theme='dark']
-  .active-filter
-) {
-  color: #c4b5fd;
-}
-
-:global(
-  html[data-theme='dark']
-  .hashtag-section label
-) {
-  color: #a1a1aa;
-}
-
-:global(
-  html[data-theme='dark']
-  .hashtag-section input
-) {
-  border-color: #343447;
-  background: #171728;
-  color: #f4f4f5;
-}
-
-:global(
-  html[data-theme='dark']
-  .clear-hashtag-button
-) {
-  color: #a1a1aa;
-}
-
-:global(
-  html[data-theme='dark']
-  .clear-hashtag-button:hover
-) {
-  background: #292940;
-  color: #ddd6fe;
 }
 </style>

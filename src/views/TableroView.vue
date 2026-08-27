@@ -37,6 +37,7 @@ const router = useRouter()
 const views = ref<PoliticalView[]>([])
 const totalViews = ref(0)
 const authStore = useAuthStore()
+
 // Paginación
 const currentPage = ref(1)
 const pageSize = 5
@@ -46,10 +47,30 @@ const loadMoreError = ref('')
 // Categorías
 const categories = ref<Category[]>([])
 
-//Hashtags
+// Hashtags
 const hashtags = ref<Hashtag[]>([])
 const hashtagsLoading = ref(true)
 const hashtagSearch = ref('')
+const hashtagSuggestionsOpen = ref(false)
+
+const filteredHashtags = computed(() => {
+  const search = hashtagSearch.value
+    .trim()
+    .replace(/^#/, '')
+    .toLowerCase()
+
+  if (!search) {
+    return []
+  }
+
+  return hashtags.value
+    .filter((hashtag) =>
+      hashtag.name
+        .toLowerCase()
+        .includes(search),
+    )
+    .slice(0, 6)
+})
 
 // Filtros
 const selectedCategory = ref('')
@@ -212,8 +233,7 @@ const loadViews = async (): Promise<void> => {
   }
 }
 
-// Carga la siguiente página
-// conservando las publicaciones anteriores
+// Carga la siguiente página conservando las anteriores
 const loadMoreViews =
   async (): Promise<void> => {
     if (
@@ -326,7 +346,7 @@ const selectCategory = async (
   await loadViews()
 }
 
-// Cambia el hashtag
+// Aplica el hashtag escrito manualmente
 const handleHashtagChange =
   async (): Promise<void> => {
     const normalizedHashtag =
@@ -343,17 +363,46 @@ const handleHashtagChange =
     hashtagSearch.value =
       normalizedHashtag
 
+    hashtagSuggestionsOpen.value = false
+
     await persistFilters()
     await loadViews()
+  }
+
+// Selecciona un hashtag del autocomplete
+const selectHashtag = async (
+  hashtag: string,
+): Promise<void> => {
+  const normalizedHashtag =
+    hashtag
+      .trim()
+      .replace(/^#/, '')
+      .toLowerCase()
+
+  hashtagSearch.value =
+    normalizedHashtag
+
+  selectedHashtags.value =
+    normalizedHashtag
+      ? [normalizedHashtag]
+      : []
+
+  hashtagSuggestionsOpen.value = false
+
+  await persistFilters()
+  await loadViews()
 }
 
-const clearHashtag = async (): Promise<void> => {
+// Limpia el filtro de hashtag
+const clearHashtag =
+  async (): Promise<void> => {
     hashtagSearch.value = ''
     selectedHashtags.value = []
+    hashtagSuggestionsOpen.value = false
 
     await persistFilters()
     await loadViews()
-}
+  }
 
 // Cambia el orden
 const handleSortChange =
@@ -383,7 +432,6 @@ onMounted(async () => {
 
   <main class="dashboard-page">
     <section class="dashboard-container">
-      <!-- Encabezado -->
       <header class="dashboard-header">
         <div>
           <span class="dashboard-label">
@@ -408,7 +456,6 @@ onMounted(async () => {
         </div>
       </header>
 
-      <!-- Controles -->
       <section
         id="categories"
         class="dashboard-controls"
@@ -462,18 +509,71 @@ onMounted(async () => {
             Hashtag
           </label>
 
-          <input
-            id="hashtag-filter"
-            v-model="hashtagSearch"
-            type="text"
-            list="dashboard-hashtags"
-            :disabled="hashtagsLoading"
-            placeholder="Buscar hashtag..."
-            @change="handleHashtagChange"
-            @keydown.enter.prevent="
-              handleHashtagChange
-            "
-          />
+          <div class="hashtag-combobox">
+            <div class="hashtag-input-wrapper">
+              <input
+                id="hashtag-filter"
+                v-model="hashtagSearch"
+                type="text"
+                :disabled="hashtagsLoading"
+                placeholder="Buscar hashtag..."
+                autocomplete="off"
+                role="combobox"
+                aria-autocomplete="list"
+                :aria-expanded="
+                  hashtagSuggestionsOpen &&
+                  filteredHashtags.length > 0
+                "
+                aria-controls="hashtag-suggestions"
+                @input="
+                  hashtagSuggestionsOpen = true
+                "
+                @focus="
+                  hashtagSuggestionsOpen =
+                    hashtagSearch.trim().length > 0
+                "
+                @keydown.enter.prevent="
+                  handleHashtagChange
+                "
+                @keydown.esc="
+                  hashtagSuggestionsOpen = false
+                "
+              />
+
+              <button
+                v-if="hashtagSearch"
+                type="button"
+                class="hashtag-clear"
+                aria-label="Limpiar hashtag"
+                @click="clearHashtag"
+              >
+                ×
+              </button>
+            </div>
+
+            <div
+              v-if="
+                hashtagSuggestionsOpen &&
+                filteredHashtags.length > 0
+              "
+              id="hashtag-suggestions"
+              class="hashtag-suggestions"
+              role="listbox"
+            >
+              <button
+                v-for="hashtag in filteredHashtags"
+                :key="hashtag.id"
+                type="button"
+                class="hashtag-suggestion"
+                role="option"
+                @mousedown.prevent="
+                  selectHashtag(hashtag.name)
+                "
+              >
+                #{{ hashtag.name }}
+              </button>
+            </div>
+          </div>
 
           <div
             v-if="selectedHashtags.length"
@@ -495,16 +595,6 @@ onMounted(async () => {
               </button>
             </span>
           </div>
-
-          <datalist id="dashboard-hashtags">
-            <option
-              v-for="hashtag in hashtags"
-              :key="hashtag.id"
-              :value="hashtag.name"
-            >
-              #{{ hashtag.name }}
-            </option>
-          </datalist>
         </div>
 
         <div class="sort-section">
@@ -532,17 +622,14 @@ onMounted(async () => {
         </div>
       </section>
 
-      <!-- Cargando inicial -->
       <div
         v-if="loading"
         class="state-container"
       >
         <div class="loader"></div>
-
         <p>Cargando publicaciones...</p>
       </div>
 
-      <!-- Error inicial -->
       <div
         v-else-if="errorMessage"
         class="state-container error-state"
@@ -563,7 +650,6 @@ onMounted(async () => {
         </button>
       </div>
 
-      <!-- Estado vacío -->
       <div
         v-else-if="views.length === 0"
         class="state-container"
@@ -578,7 +664,6 @@ onMounted(async () => {
         </p>
       </div>
 
-      <!-- Publicaciones -->
       <template v-else>
         <section
           class="views-list"
@@ -591,7 +676,6 @@ onMounted(async () => {
           />
         </section>
 
-        <!-- Error al cargar otra página -->
         <p
           v-if="loadMoreError"
           class="load-more-error"
@@ -600,7 +684,6 @@ onMounted(async () => {
           {{ loadMoreError }}
         </p>
 
-        <!-- Cargar más -->
         <div
           v-if="hasMore"
           class="load-more-container"
@@ -636,11 +719,6 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-/* =========================
-   MOBILE FIRST
-   Base: móvil
-   ========================= */
-
 .dashboard-page {
   min-height: calc(100vh - 72px);
   padding: 35px 16px;
@@ -659,10 +737,6 @@ onMounted(async () => {
   max-width: 100%;
   margin: 0 auto;
 }
-
-/* =========================
-   Encabezado
-   ========================= */
 
 .dashboard-header {
   display: flex;
@@ -709,10 +783,6 @@ onMounted(async () => {
   font-weight: 700;
 }
 
-/* =========================
-   Filtros
-   ========================= */
-
 .dashboard-controls {
   display: flex;
   align-items: stretch;
@@ -741,10 +811,6 @@ onMounted(async () => {
   font-weight: 800;
   letter-spacing: 0.5px;
 }
-
-/* =========================
-   Categorías
-   ========================= */
 
 .category-list {
   display: flex;
@@ -781,19 +847,27 @@ onMounted(async () => {
   font-size: 14px;
 }
 
-/* =========================
-   Hashtag
-   ========================= */
+/* Hashtag */
 
 .hashtag-section {
   width: 100%;
   flex-shrink: 0;
 }
 
+.hashtag-combobox {
+  position: relative;
+  width: 100%;
+}
+
+.hashtag-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
 .hashtag-section input {
   box-sizing: border-box;
   width: 100%;
-  padding: 10px 12px;
+  padding: 10px 36px 10px 12px;
   border: 1px solid #e4e4e7;
   border-radius: 9px;
   outline: none;
@@ -819,6 +893,54 @@ onMounted(async () => {
 .hashtag-section input:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.hashtag-clear {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #71717a;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.hashtag-suggestions {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 5px);
+  left: 0;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid #e4e4e7;
+  border-radius: 9px;
+  background: #ffffff;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+}
+
+.hashtag-suggestion {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  color: #52525b;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hashtag-suggestion:hover,
+.hashtag-suggestion:focus {
+  outline: none;
+  background: #f5f3ff;
+  color: #6d28d9;
 }
 
 .active-hashtags {
@@ -850,17 +972,7 @@ onMounted(async () => {
   cursor: pointer;
 }
 
-:global(
-  html[data-theme='dark']
-  .hashtag-chip
-) {
-  background: #2e254f;
-  color: #c4b5fd;
-}
-
-/* =========================
-   Ordenamiento
-   ========================= */
+/* Ordenamiento */
 
 .sort-section {
   width: 100%;
@@ -888,9 +1000,7 @@ onMounted(async () => {
     0 0 0 3px rgba(124, 58, 237, 0.08);
 }
 
-/* =========================
-   Publicaciones
-   ========================= */
+/* Publicaciones */
 
 .views-list {
   display: flex;
@@ -898,9 +1008,7 @@ onMounted(async () => {
   gap: 24px;
 }
 
-/* =========================
-   Cargar más
-   ========================= */
+/* Cargar más */
 
 .load-more-container {
   display: flex;
@@ -960,9 +1068,7 @@ onMounted(async () => {
   animation: spin 0.7s linear infinite;
 }
 
-/* =========================
-   Estados
-   ========================= */
+/* Estados */
 
 .state-container {
   display: flex;
@@ -1023,10 +1129,7 @@ onMounted(async () => {
   }
 }
 
-/* =========================
-   TABLET
-   701px en adelante
-   ========================= */
+/* Tablet */
 
 @media (min-width: 701px) {
   .dashboard-page {
@@ -1052,18 +1155,9 @@ onMounted(async () => {
   }
 }
 
-/* =========================
-   TABLET GRANDE / LAPTOP
-   801px en adelante
-   ========================= */
+/* Tablet grande / laptop */
 
 @media (min-width: 801px) {
-  .views-list {
-    display: grid;
-    grid-template-columns:
-      repeat(2, minmax(0, 1fr));
-    gap: 24px;
-  }
   .dashboard-controls {
     align-items: flex-end;
     flex-direction: row;
@@ -1079,10 +1173,7 @@ onMounted(async () => {
   }
 }
 
-/* =========================
-   ESCRITORIO
-   1200px en adelante
-   ========================= */
+/* Escritorio */
 
 @media (min-width: 1200px) {
   .dashboard-page {
@@ -1094,9 +1185,7 @@ onMounted(async () => {
   }
 }
 
-/* =========================
-   PANTALLAS MUY GRANDES
-   ========================= */
+/* Pantallas muy grandes */
 
 @media (min-width: 1600px) {
   .dashboard-container {
@@ -1104,9 +1193,7 @@ onMounted(async () => {
   }
 }
 
-/* =========================
-   Tema oscuro
-   ========================= */
+/* Tema oscuro */
 
 :global(html[data-theme='dark'] .dashboard-page) {
   background: #0f1020;
@@ -1130,10 +1217,6 @@ onMounted(async () => {
   color: #d4d4d8;
 }
 
-/* =========================
-   Filtros - Tema oscuro
-   ========================= */
-
 :global(html[data-theme='dark'] .dashboard-controls) {
   border-color: #29293d;
   background: #171728;
@@ -1144,8 +1227,6 @@ onMounted(async () => {
 :global(html[data-theme='dark'] .hashtag-section label) {
   color: #a1a1aa;
 }
-
-/* Categorías */
 
 :global(html[data-theme='dark'] .category-button) {
   border-color: #343447;
@@ -1169,8 +1250,6 @@ onMounted(async () => {
   color: #71717a;
 }
 
-/* Hashtag */
-
 :global(html[data-theme='dark'] .hashtag-section input) {
   border-color: #343447;
   background: #1b1b2d;
@@ -1191,7 +1270,29 @@ onMounted(async () => {
     0 0 0 3px rgba(139, 92, 246, 0.15);
 }
 
-/* Ordenamiento */
+:global(html[data-theme='dark'] .hashtag-suggestions) {
+  border-color: #343447;
+  background: #1b1b2d;
+}
+
+:global(html[data-theme='dark'] .hashtag-suggestion) {
+  color: #d4d4d8;
+}
+
+:global(html[data-theme='dark'] .hashtag-suggestion:hover),
+:global(html[data-theme='dark'] .hashtag-suggestion:focus) {
+  background: #25243a;
+  color: #c4b5fd;
+}
+
+:global(html[data-theme='dark'] .hashtag-clear) {
+  color: #a1a1aa;
+}
+
+:global(html[data-theme='dark'] .hashtag-chip) {
+  background: #2e254f;
+  color: #c4b5fd;
+}
 
 :global(html[data-theme='dark'] .sort-section select) {
   border-color: #343447;
@@ -1204,10 +1305,6 @@ onMounted(async () => {
   box-shadow:
     0 0 0 3px rgba(139, 92, 246, 0.15);
 }
-
-/* =========================
-   Estados - Tema oscuro
-   ========================= */
 
 :global(html[data-theme='dark'] .state-container) {
   border-color: #29293d;
@@ -1223,10 +1320,6 @@ onMounted(async () => {
   border-color: #343447;
   border-top-color: #a78bfa;
 }
-
-/* =========================
-   Cargar más - Tema oscuro
-   ========================= */
 
 :global(html[data-theme='dark'] .load-more-button) {
   border-color: #8b5cf6;
