@@ -36,6 +36,29 @@ const toastStore = useToastStore()
 
 const submitting = ref(false)
 const formError = ref('')
+const fieldErrors = reactive({
+  category: '',
+  sideTitle: '',
+  sideDescription: '',
+  sideSources: '',
+  counterpartTitle: '',
+  counterpartDescription: '',
+  counterpartSources: '',
+  hashtags: '',
+})
+
+const clearFieldErrors = (): void => {
+  Object.assign(fieldErrors, {
+    category: '',
+    sideTitle: '',
+    sideDescription: '',
+    sideSources: '',
+    counterpartTitle: '',
+    counterpartDescription: '',
+    counterpartSources: '',
+    hashtags: '',
+  })
+}
 const loadingExistingView = ref(false)
 
 // Determina si la pantalla está creando o editando
@@ -247,23 +270,26 @@ const isValidUrl = (value: string): boolean => {
 // Valida los campos obligatorios del formulario
 const validateForm = (): boolean => {
   formError.value = ''
+  clearFieldErrors()
+
+  let isValid = true
 
   if (!form.categoryId) {
-    formError.value =
+    fieldErrors.category =
       'Selecciona una categoría.'
-    return false
+    isValid = false
   }
 
   if (!form.side.title.trim()) {
-    formError.value =
+    fieldErrors.sideTitle =
       'Ingresa el título del Lado A.'
-    return false
+    isValid = false
   }
 
   if (!form.side.description.trim()) {
-    formError.value =
+    fieldErrors.sideDescription =
       'Ingresa la descripción del Lado A.'
-    return false
+    isValid = false
   }
 
   if (
@@ -273,21 +299,23 @@ const validateForm = (): boolean => {
         !isValidUrl(source.url.trim()),
     )
   ) {
-    formError.value =
+    fieldErrors.sideSources =
       'Ingresa una URL válida en todas las fuentes del Lado A.'
-    return false
+    isValid = false
   }
 
   if (!form.counterpart.title.trim()) {
-    formError.value =
+    fieldErrors.counterpartTitle =
       'Ingresa el título del Lado B.'
-    return false
+    isValid = false
   }
 
-  if (!form.counterpart.description.trim()) {
-    formError.value =
+  if (
+    !form.counterpart.description.trim()
+  ) {
+    fieldErrors.counterpartDescription =
       'Ingresa la descripción del Lado B.'
-    return false
+    isValid = false
   }
 
   if (
@@ -297,18 +325,25 @@ const validateForm = (): boolean => {
         !isValidUrl(source.url.trim()),
     )
   ) {
-    formError.value =
+    fieldErrors.counterpartSources =
       'Ingresa una URL válida en todas las fuentes del Lado B.'
-    return false
+    isValid = false
   }
 
-  if ((form.hashtags?.length ?? 0) > 10) {
-    formError.value =
+  if (
+    (form.hashtags?.length ?? 0) > 10
+  ) {
+    fieldErrors.hashtags =
       'Solo puedes agregar hasta 10 hashtags.'
-    return false
+    isValid = false
   }
 
-  return true
+  if (!isValid) {
+    formError.value =
+      'Revise los campos marcados.'
+  }
+
+  return isValid
 }
 
 // Prepara los datos que se enviarán al API
@@ -361,6 +396,10 @@ const buildPayload = (): ViewFormPayload => ({
 
 // Envía una nueva publicación al API
 const submitForm = async (): Promise<void> => {
+  if (submitting.value) {
+    return
+  }
+
   if (!validateForm()) {
     return
   }
@@ -408,6 +447,42 @@ const submitForm = async (): Promise<void> => {
 
     await router.push('/')
   } catch (error) {
+    if (
+      error instanceof ViewEditorError &&
+      (
+        error.status === 400 ||
+        error.status === 422
+      )
+    ) {
+      clearFieldErrors()
+
+      const apiFields =
+        error.details?.fieldErrors
+
+      if (apiFields) {
+        if (apiFields.categoryId?.length) {
+          fieldErrors.category =
+            apiFields.categoryId.join(' ')
+        }
+
+        if (apiFields.side?.length) {
+          fieldErrors.sideTitle =
+            apiFields.side.join(' ')
+        }
+
+        if (apiFields.counterpart?.length) {
+          fieldErrors.counterpartTitle =
+            apiFields.counterpart.join(' ')
+        }
+
+        if (apiFields.hashtags?.length) {
+          fieldErrors.hashtags =
+            apiFields.hashtags.join(' ')
+        }
+      }
+      formError.value = error.message
+      return
+    }
     if (
       error instanceof ViewEditorError &&
       error.status === 401
@@ -618,6 +693,13 @@ onMounted(async () => {
                 {{ category.name }}
               </option>
             </select>
+            <p
+              v-if="fieldErrors.category"
+              class="field-error"
+              role="alert"
+            >
+              {{ fieldErrors.category }}
+            </p>
 
             <p
               v-if="categoriesError"
@@ -664,6 +746,14 @@ onMounted(async () => {
                   maxlength="150"
                   placeholder="Título de la primera perspectiva"
                 />
+
+                <p
+                  v-if="fieldErrors.sideTitle"
+                  class="field-error"
+                  role="alert"
+                >
+                  {{ fieldErrors.sideTitle }}
+                </p>
               </div>
 
               <div class="field">
@@ -677,6 +767,14 @@ onMounted(async () => {
                   rows="6"
                   placeholder="Explica esta perspectiva..."
                 ></textarea>
+
+                <p
+                  v-if="fieldErrors.sideDescription"
+                  class="field-error"
+                  role="alert"
+                >
+                  {{ fieldErrors.sideDescription }}
+                </p>
               </div>
             </article>
 
@@ -699,6 +797,13 @@ onMounted(async () => {
                   maxlength="150"
                   placeholder="Título de la segunda perspectiva"
                 />
+                <p
+                  v-if="fieldErrors.counterpartTitle"
+                  class="field-error"
+                  role="alert"
+                >
+                  {{ fieldErrors.counterpartTitle }}
+                </p>
               </div>
 
               <div class="field">
@@ -712,6 +817,13 @@ onMounted(async () => {
                   rows="6"
                   placeholder="Explica la perspectiva contraria..."
                 ></textarea>
+                <p
+                  v-if="fieldErrors.counterpartDescription"
+                  class="field-error"
+                  role="alert"
+                >
+                  {{ fieldErrors.counterpartDescription }}
+                </p>
               </div>
             </article>
           </div>
@@ -737,6 +849,13 @@ onMounted(async () => {
             <div class="sources-column">
             <h3>Fuentes del Lado A</h3>
 
+            <p
+              v-if="fieldErrors.sideSources"
+              class="field-error"
+              role="alert"
+            >
+              {{ fieldErrors.sideSources }}
+            </p>
             <div
                 v-for="(source, index) in form.side.sources"
                 :key="`side-${index}`"
@@ -766,7 +885,10 @@ onMounted(async () => {
                 <button
                     class="remove-source"
                     type="button"
-                    :disabled="form.side.sources.length <= 1"
+                    :disabled="
+                      submitting ||
+                      form.side.sources.length <= 1
+                    "
                     aria-label="Eliminar fuente"
                     @click="removeSource('side', index)"
                 >
@@ -802,6 +924,7 @@ onMounted(async () => {
             <button
                 class="add-source"
                 type="button"
+                :disabled="submitting"
                 @click="addSource('side')"
             >
                 + Agregar fuente
@@ -811,6 +934,14 @@ onMounted(async () => {
             <!-- Fuentes lado B -->
             <div class="sources-column">
             <h3>Fuentes del Lado B</h3>
+
+            <p
+              v-if="fieldErrors.counterpartSources"
+              class="field-error"
+              role="alert"
+            >
+              {{ fieldErrors.counterpartSources }}
+            </p>
 
             <div
                 v-for="(source, index) in form.counterpart.sources"
@@ -842,7 +973,8 @@ onMounted(async () => {
                     class="remove-source"
                     type="button"
                     :disabled="
-                    form.counterpart.sources.length <= 1
+                      submitting ||
+                      form.counterpart.sources.length <= 1
                     "
                     aria-label="Eliminar fuente"
                     @click="
@@ -884,6 +1016,7 @@ onMounted(async () => {
                 <button
                     class="add-source"
                     type="button"
+                    :disabled="submitting"
                     @click="addSource('counterpart')"
                 >
                     + Agregar fuente
@@ -935,7 +1068,8 @@ onMounted(async () => {
             class="add-hashtag"
             type="button"
             :disabled="
-                (form.hashtags?.length ?? 0) >= 10
+              submitting ||
+              (form.hashtags?.length ?? 0) >= 10
             "
             @click="addHashtag"
             >
@@ -950,6 +1084,7 @@ onMounted(async () => {
             <button
             v-for="hashtag in form.hashtags"
             :key="hashtag"
+            :disabled="submitting"
             class="hashtag-chip"
             type="button"
             :aria-label="`Eliminar hashtag ${hashtag}`"
@@ -963,11 +1098,19 @@ onMounted(async () => {
         <p class="hashtag-count">
             {{ form.hashtags?.length ?? 0 }}/10
         </p>
+
+        <p
+          v-if="fieldErrors.hashtags"
+          class="field-error"
+          role="alert"
+        >
+          {{ fieldErrors.hashtags }}
+        </p>
         </section>
 
         <!-- Acciones -->
         <section class="form-actions">
-        <p
+          <p
             v-if="formError"
             class="form-error"
             role="alert"

@@ -5,6 +5,8 @@ import App from './App.vue'
 import router from './router'
 import { useAuthStore } from './stores/auth'
 import { useThemeStore } from './stores/theme'
+import { getCategories } from './services/categoriesService'
+import { getHashtags } from './services/hashtagsService'
 
 // Creamos la aplicación de Vue
 const app = createApp(App)
@@ -24,5 +26,12 @@ authStore.restoreSession()
 const themeStore = useThemeStore(pinia)
 themeStore.restoreTheme()
 
+// Precarga la información persistida
+// desde el inicio de la aplicación.
+void getCategories()
+  .catch(() => undefined)
+
+void getHashtags()
+  .catch(() => undefined)
 // Montamos la aplicación en el HTML principal
 app.mount('#app')

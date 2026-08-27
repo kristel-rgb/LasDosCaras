@@ -1,3 +1,7 @@
+import {
+  removeStorage,
+} from '@/utils/cache'
+
 export class OfflineError extends Error {
   constructor(
     message = 'No hay conexión a internet.',
@@ -52,11 +56,11 @@ const handleHttpErrors = (
     response.status === 401 &&
     hasAuthorizationHeader(init.headers)
   ) {
-    localStorage.removeItem(
+    removeStorage(
       'lasdoscaras_auth',
     )
 
-    localStorage.removeItem(
+    removeStorage(
       'lasdoscaras_favorites',
     )
 
@@ -104,7 +108,7 @@ export const apiFetch = async (
   // cuando el navegador está sin conexión.
   if (isOffline() && !isGetRequest) {
     throw new OfflineError(
-      'No puedes realizar esta acción sin conexión.',
+      'No es posible realizar esta acción sin conexión al servidor.',
     )
   }
 

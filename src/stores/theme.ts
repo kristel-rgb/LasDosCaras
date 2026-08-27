@@ -1,56 +1,89 @@
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import {
+  defineStore,
+} from 'pinia'
 
-export type Theme = 'light' | 'dark'
+import {
+  ref,
+} from 'vue'
 
-// Store global encargado del tema de la aplicación
-export const useThemeStore = defineStore('theme', () => {
-  const theme = ref<Theme>('light')
+import {
+  getStorage,
+  setStorage,
+} from '@/utils/cache'
 
-  // Aplica el tema al documento
-  const applyTheme = (newTheme: Theme): void => {
-    theme.value = newTheme
+export type Theme =
+  'light' | 'dark'
 
-    document.documentElement.setAttribute(
-      'data-theme',
-      newTheme,
-    )
+// Store global encargado del tema
+// de la aplicación
+export const useThemeStore =
+  defineStore(
+    'theme',
+    () => {
+      const theme =
+        ref<Theme>('light')
 
-    localStorage.setItem(
-      'lasdoscaras_theme',
-      newTheme,
-    )
-  }
+      // Aplica el tema al documento
+      const applyTheme = (
+        newTheme: Theme,
+      ): void => {
+        theme.value = newTheme
 
-  // Cambia entre tema claro y oscuro
-  const toggleTheme = (): void => {
-    applyTheme(
-      theme.value === 'light'
-        ? 'dark'
-        : 'light',
-    )
-  }
+        document.documentElement
+          .setAttribute(
+            'data-theme',
+            newTheme,
+          )
 
-  // Recupera el tema guardado al iniciar la aplicación
-  const restoreTheme = (): void => {
-    const storedTheme =
-      localStorage.getItem('lasdoscaras_theme')
+        setStorage(
+          'lasdoscaras_theme',
+          newTheme,
+        )
+      }
 
-    if (
-      storedTheme === 'light' ||
-      storedTheme === 'dark'
-    ) {
-      applyTheme(storedTheme)
-      return
-    }
+      // Cambia entre tema claro y oscuro
+      const toggleTheme = (): void => {
+        applyTheme(
+          theme.value === 'light'
+            ? 'dark'
+            : 'light',
+        )
+      }
 
-    applyTheme('light')
-  }
+      // Recupera el tema guardado.
+      // Si no existe, respeta la
+      // preferencia del sistema.
+      const restoreTheme = (): void => {
+        const storedTheme =
+          getStorage<Theme>(
+            'lasdoscaras_theme',
+          )
 
-  return {
-    theme,
-    applyTheme,
-    toggleTheme,
-    restoreTheme,
-  }
-})
+        if (
+          storedTheme === 'light' ||
+          storedTheme === 'dark'
+        ) {
+          applyTheme(storedTheme)
+          return
+        }
+
+        const prefersDark =
+          window.matchMedia(
+            '(prefers-color-scheme: dark)',
+          ).matches
+
+        applyTheme(
+          prefersDark
+            ? 'dark'
+            : 'light',
+        )
+      }
+
+      return {
+        theme,
+        applyTheme,
+        toggleTheme,
+        restoreTheme,
+      }
+    },
+  )

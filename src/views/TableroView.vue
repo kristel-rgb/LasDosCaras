@@ -34,6 +34,7 @@ const categories = ref<Category[]>([])
 
 // Filtros
 const selectedCategory = ref('')
+const selectedHashtags = ref<string[]>([])
 const selectedSort = ref<
   'recent' | 'likes' | 'dislikes'
 >('recent')
@@ -50,6 +51,9 @@ const restoreFilters = (): void => {
 
   selectedSort.value =
     savedFilters.sort
+
+  selectedHashtags.value =
+    savedFilters.hashtags
 }
 
 // Búsqueda
@@ -166,6 +170,7 @@ const selectCategory = async (
   saveBoardFilters({
     categoryId: selectedCategory.value,
     sort: selectedSort.value,
+    hashtags: selectedHashtags.value,
   })
 
   await loadViews()
@@ -176,6 +181,7 @@ const handleSortChange = async (): Promise<void> => {
   saveBoardFilters({
     categoryId: selectedCategory.value,
     sort: selectedSort.value,
+    hashtags: selectedHashtags.value,
   })
   await loadViews()
 }

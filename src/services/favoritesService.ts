@@ -2,6 +2,10 @@ import {
   apiFetch,
 } from '@/utils/network'
 
+import {
+  setStorage,
+} from '@/utils/cache'
+
 // URL base del API obtenida desde las variables de entorno
 const API_URL = import.meta.env.VITE_API_URL
 
@@ -157,13 +161,8 @@ export const removeFavorite = async (
 export const saveFavoriteIds = (
   favorites: string[],
 ): void => {
-  try {
-    localStorage.setItem(
-      'lasdoscaras_favorites',
-      JSON.stringify(favorites),
-    )
-  } catch {
-    // Un fallo de localStorage no debe
-    // impedir completar el inicio de sesión.
-  }
+  setStorage(
+    'lasdoscaras_favorites',
+    favorites,
+  )
 }
